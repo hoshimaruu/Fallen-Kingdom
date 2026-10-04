@@ -286,11 +286,6 @@ radius = 13.038404
 collision_layer = 2
 collision_mask = 21
 script = ExtResource("1_ny6sd")
-max_health = null
-respawn_time = null
-attack_damage = null
-attack_range = null
-attack_cooldown = null
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -2)

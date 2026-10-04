@@ -1,79 +1,47 @@
 extends CharacterBody2D
 
-
-# =========================================================
-# PLAYER ID
-# =========================================================
-
-var player_id: int = 0
-
-
-# =========================================================
-# MOVEMENT
-# =========================================================
-
+# --- Movement ---
 @export var speed: float = 180.0
 
-
-# =========================================================
-# HEALTH
-# =========================================================
-
+# --- Health ---
 @export var max_health: int = 100
 @export var respawn_time: float = 3.0
 
-var health: int
-var dead: bool = false
-var hurt: bool = false
-
-
-# =========================================================
-# ATTACK DAMAGE
-# =========================================================
-
+# --- Attack damage ---
 @export var attack1_damage: int = 10
 @export var attack2_damage: int = 15
 
-
-# =========================================================
-# ATTACK STATE
-# =========================================================
-
-var attacking: bool = false
-var current_attack: String = ""
-
-var hit_targets: Array = []
-
-
-# =========================================================
-# KNIGHT SLASH
-# =========================================================
-
+# --- Knight slash (attack2 projectile) ---
 @export var slash_scene: PackedScene
 @export var slash_release_frame: int = 8
 
-
-# =========================================================
-# BLOCK
-# =========================================================
-
-var blocking: bool = false
-
+# --- Block ---
 @export var block_duration: float = 1.5
-@export var block_damage_reduction: float = 0.8
+@export var block_damage_reduction: float = 0.8  # 0.8 = take 20%, 1.0 = take none
 
-
-# =========================================================
-# ATTACK AREA
-# =========================================================
-
+# --- Attack area ---
 @export var attack_area_distance: float = 35.0
 
+# --- State ---
+var player_id: int = 0
+var health: int
+var dead: bool = false
+var hurt: bool = false
+var attacking: bool = false
+var blocking: bool = false
+var current_attack: String = ""
+var hit_targets: Array = []
 
-# =========================================================
-# NODES
-# =========================================================
+# --- Input action names (filled in by _setup_actions) ---
+var act_up: String
+var act_down: String
+var act_left: String
+var act_right: String
+var act_attack1: String
+var act_attack2: String
+var act_attack3: String
 
+# --- Nodes ---
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea
 @onready var barrier: AnimatedSprite2D = $Barrier
@@ -84,658 +52,296 @@ var blocking: bool = false
 # READY
 # =========================================================
 
-func _ready():
-
+func _ready() -> void:
 	add_to_group("players")
 
+	match get_parent().name:
+		"Player1":
+			player_id = 1
+		"Player2":
+			player_id = 2
+		_:
+			print("WARNING: Knight is not under Player1 or Player2")
 
-	if get_parent().name == "Player1":
-
-		player_id = 1
-
-	elif get_parent().name == "Player2":
-
-		player_id = 2
-
-	else:
-
-		print("WARNING: Knight is not under Player1 or Player2")
-
+	_setup_actions()
 
 	health = max_health
-
 	dead = false
 	hurt = false
 	attacking = false
 	blocking = false
 
-
 	attack_area.monitoring = false
-
 	barrier.visible = false
-
-
-	collision_shape.set_deferred(
-		"disabled",
-		false
-	)
-
+	collision_shape.set_deferred("disabled", false)
 
 	update_attack_area_direction()
 
+	print("KNIGHT READY | PLAYER ID: ", player_id, " | HP: ", health)
+	print("ANIMATIONS: ", animated_sprite.sprite_frames.get_animation_names())
 
-	print("================================")
-	print("KNIGHT READY")
-	print("PLAYER ID:", player_id)
-	print("HP:", health)
-	print("GROUPS:", get_groups())
-	print("AVAILABLE ANIMATIONS:")
-	print(animated_sprite.sprite_frames.get_animation_names())
-	print("================================")
+
+func _setup_actions() -> void:
+	# Anything that isn't player 1 uses the p2_ actions (same as before)
+	var prefix := "p1_" if player_id == 1 else "p2_"
+
+	act_up = prefix + "up"
+	act_down = prefix + "down"
+	act_left = prefix + "left"
+	act_right = prefix + "right"
+	act_attack1 = prefix + "attack1"
+	act_attack2 = prefix + "attack2"
+	act_attack3 = prefix + "attack3"
 
 
 # =========================================================
-# INPUT ACTIONS
+# HELPERS
 # =========================================================
 
-func get_up_action() -> String:
-
-	if player_id == 1:
-		return "p1_up"
-
-	return "p2_up"
-
-
-func get_down_action() -> String:
-
-	if player_id == 1:
-		return "p1_down"
-
-	return "p2_down"
+func _restart_animation(anim_name: String) -> void:
+	animated_sprite.stop()
+	animated_sprite.animation = anim_name
+	animated_sprite.frame = 0
+	animated_sprite.play()
 
 
-func get_left_action() -> String:
-
-	if player_id == 1:
-		return "p1_left"
-
-	return "p2_left"
-
-
-func get_right_action() -> String:
-
-	if player_id == 1:
-		return "p1_right"
-
-	return "p2_right"
+func _clear_combat_state() -> void:
+	attacking = false
+	blocking = false
+	current_attack = ""
+	velocity = Vector2.ZERO
+	attack_area.monitoring = false
+	barrier.visible = false
+	barrier.stop()
 
 
-func get_attack1_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack1"
-
-	return "p2_attack1"
-
-
-func get_attack2_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack2"
-
-	return "p2_attack2"
-
-
-func get_attack3_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack3"
-
-	return "p2_attack3"
+func update_attack_area_direction() -> void:
+	attack_area.position.x = -abs(attack_area_distance) if animated_sprite.flip_h else abs(attack_area_distance)
 
 
 # =========================================================
 # PHYSICS
 # =========================================================
 
-func _physics_process(_delta):
-
-	if dead:
-
+func _physics_process(_delta: float) -> void:
+	if dead or hurt:
 		velocity = Vector2.ZERO
-
 		return
 
-
-	if hurt:
-
+	if blocking or attacking:
 		velocity = Vector2.ZERO
-
-		return
-
-
-	if blocking:
-
-		velocity = Vector2.ZERO
-
 		move_and_slide()
-
 		return
 
-
-	if attacking:
-
-		velocity = Vector2.ZERO
-
-		move_and_slide()
-
-		return
-
-
-	var direction = Input.get_vector(
-		get_left_action(),
-		get_right_action(),
-		get_up_action(),
-		get_down_action()
-	)
-
+	var direction := Input.get_vector(act_left, act_right, act_up, act_down)
 
 	velocity = direction * speed
-
 	move_and_slide()
 
-
-	if direction.x < 0:
-
-		animated_sprite.flip_h = true
-
+	if direction.x != 0:
+		animated_sprite.flip_h = direction.x < 0
 		update_attack_area_direction()
 
-	elif direction.x > 0:
+	var wanted_anim := "walk" if direction != Vector2.ZERO else "idle"
+	if animated_sprite.animation != wanted_anim:
+		animated_sprite.play(wanted_anim)
 
-		animated_sprite.flip_h = false
-
-		update_attack_area_direction()
-
-
-	if direction != Vector2.ZERO:
-
-		if animated_sprite.animation != "walk":
-
-			animated_sprite.play("walk")
-
-	else:
-
-		if animated_sprite.animation != "idle":
-
-			animated_sprite.play("idle")
-
-
-	if Input.is_action_just_pressed(
-		get_attack1_action()
-	):
-
+	if Input.is_action_just_pressed(act_attack1):
 		start_attack("attack1")
-
-	elif Input.is_action_just_pressed(
-		get_attack2_action()
-	):
-
+	elif Input.is_action_just_pressed(act_attack2):
 		start_attack("attack2")
-
-	elif Input.is_action_just_pressed(
-		get_attack3_action()
-	):
-
+	elif Input.is_action_just_pressed(act_attack3):
 		start_block()
 
 
 # =========================================================
-# UPDATE ATTACK AREA
+# ATTACKS
 # =========================================================
 
-func update_attack_area_direction():
-
-	if animated_sprite.flip_h:
-
-		attack_area.position.x = -abs(
-			attack_area_distance
-		)
-
-	else:
-
-		attack_area.position.x = abs(
-			attack_area_distance
-		)
-
-
-# =========================================================
-# START ATTACK
-# =========================================================
-
-func start_attack(attack_name: String):
-
+func start_attack(attack_name: String) -> void:
 	if attacking or blocking or hurt or dead:
-
 		return
 
-
 	hit_targets.clear()
-
 	attacking = true
-
 	current_attack = attack_name
-
 	velocity = Vector2.ZERO
 
-
 	update_attack_area_direction()
-
 	attack_area.monitoring = false
 
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = attack_name
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	_restart_animation(attack_name)
 
 	if attack_name == "attack1":
-
 		attack_area.monitoring = true
-
 
 	await get_tree().physics_frame
 
-
 	if dead or hurt:
-
 		return
 
-
 	if attack_name == "attack1":
-
 		do_melee_damage()
-
 	elif attack_name == "attack2":
-
 		await wait_for_slash_frame()
-
 		if dead or hurt:
-
 			return
-
 		fire_slash()
-
 
 	await animated_sprite.animation_finished
 
-
 	if dead or hurt:
-
 		return
 
-
 	attacking = false
-
 	current_attack = ""
-
 	attack_area.monitoring = false
-
 	animated_sprite.play("idle")
 
 
-# =========================================================
-# ATTACK 1
-# =========================================================
-
-func do_melee_damage():
-
-	var bodies = attack_area.get_overlapping_bodies()
-
-
-	for body in bodies:
-
+func do_melee_damage() -> void:
+	for body in attack_area.get_overlapping_bodies():
 		if body == self:
-
 			continue
-
 		if not body.is_in_group("enemies"):
-
 			continue
-
 		if body in hit_targets:
-
 			continue
-
 		if not body.has_method("take_damage"):
-
 			continue
-
 
 		hit_targets.append(body)
-
 		body.take_damage(attack1_damage)
 
 
-# =========================================================
-# WAIT FOR SLASH FRAME
-# =========================================================
-
-func wait_for_slash_frame():
-
+func wait_for_slash_frame() -> void:
 	while animated_sprite.frame < slash_release_frame:
-
 		await animated_sprite.frame_changed
-
 		if dead or hurt:
-
 			return
 
 
-# =========================================================
-# FIRE SLASH
-# =========================================================
-
-func fire_slash():
-
+func fire_slash() -> void:
 	if slash_scene == null:
-
 		print("ERROR: SLASH SCENE IS NOT ASSIGNED")
-
 		return
 
-
 	var slash = slash_scene.instantiate()
-
 	get_parent().get_parent().add_child(slash)
 
+	var facing_direction := -1.0 if animated_sprite.flip_h else 1.0
 
-	var facing_direction := 1.0
-
-
-	if animated_sprite.flip_h:
-
-		facing_direction = -1.0
-
-
-	slash.global_position = global_position + Vector2(
-		facing_direction * 35.0,
-		0
-	)
-
-
-	slash.direction = Vector2(
-		facing_direction,
-		0
-	)
-
+	slash.global_position = global_position + Vector2(facing_direction * 35.0, 0)
+	slash.direction = Vector2(facing_direction, 0)
 
 	if facing_direction < 0:
-
 		slash.scale.x = -1
-
-
-	print("KNIGHT FIRED RED SLASH")
 
 
 # =========================================================
 # BLOCK
 # =========================================================
 
-func start_block():
-
+func start_block() -> void:
 	if attacking or blocking or hurt or dead:
-
 		return
-
 
 	blocking = true
-
 	velocity = Vector2.ZERO
-
 	attack_area.monitoring = false
 
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "attack3"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	_restart_animation("attack3")
 
 	barrier.visible = true
-
 	barrier.play()
 
-
 	await animated_sprite.animation_finished
 
-
 	if dead or hurt:
-
 		return
 
-
+	# Hold the last frame of the block animation
 	animated_sprite.stop()
+	animated_sprite.frame = animated_sprite.sprite_frames.get_frame_count("attack3") - 1
 
-	animated_sprite.frame = (
-		animated_sprite.sprite_frames.get_frame_count(
-			"attack3"
-		) - 1
-	)
-
-
-	await get_tree().create_timer(
-		block_duration
-	).timeout
-
+	await get_tree().create_timer(block_duration).timeout
 
 	if dead or hurt:
-
 		return
-
 
 	blocking = false
-
 	barrier.visible = false
-
 	barrier.stop()
-
 	animated_sprite.play("idle")
 
 
 # =========================================================
-# TAKE DAMAGE
+# DAMAGE / DEATH / RESPAWN
 # =========================================================
 
-func take_damage(damage: int):
-
+func take_damage(damage: int) -> void:
 	if dead:
-
 		return
 
+	var was_blocking := blocking
 
-	if blocking:
+	if was_blocking:
+		damage = int(damage * (1.0 - block_damage_reduction))
+		print("KNIGHT BLOCKED! REDUCED DAMAGE: ", damage)
 
-		damage = int(
-			damage * (1.0 - block_damage_reduction)
-		)
-
-		print("KNIGHT BLOCKED!")
-		print("REDUCED DAMAGE:", damage)
-
-
-	health -= damage
-
-	health = max(health, 0)
-
-
-	print("KNIGHT TOOK DAMAGE:", damage)
-
-	print(
-		"KNIGHT HP:",
-		health,
-		"/",
-		max_health
-	)
-
+	health = max(health - damage, 0)
+	print("KNIGHT HP: ", health, "/", max_health)
 
 	if health <= 0:
-
 		die()
-
 		return
 
+	# Blocked hits don't interrupt the shield
+	if was_blocking:
+		return
 
 	hurt = true
-
-	attacking = false
-
-	blocking = false
-
-	current_attack = ""
-
-	velocity = Vector2.ZERO
-
-	attack_area.monitoring = false
-
-	barrier.visible = false
-
-	barrier.stop()
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "hurt"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
-
-	print("KNIGHT HURT")
-
+	_clear_combat_state()
+	_restart_animation("hurt")
 
 	await animated_sprite.animation_finished
 
-
 	if dead:
-
 		return
 
-
 	hurt = false
-
 	animated_sprite.play("idle")
 
 
-# =========================================================
-# DEATH
-# =========================================================
-
-func die():
-
+func die() -> void:
 	if dead:
-
 		return
 
-
 	dead = true
-
 	hurt = false
+	_clear_combat_state()
 
-	attacking = false
-
-	blocking = false
-
-	current_attack = ""
-
-	velocity = Vector2.ZERO
-
-	attack_area.monitoring = false
-
-	barrier.visible = false
-
-	barrier.stop()
-
-
-	collision_shape.set_deferred(
-		"disabled",
-		true
-	)
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "death"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	collision_shape.set_deferred("disabled", true)
+	_restart_animation("death")
 
 	print("KNIGHT DIED")
 
-
 	await animated_sprite.animation_finished
-
-
-	await get_tree().create_timer(
-		respawn_time
-	).timeout
-
+	await get_tree().create_timer(respawn_time).timeout
 
 	if not is_inside_tree():
-
 		return
-
 
 	respawn()
 
 
-# =========================================================
-# RESPAWN
-# =========================================================
-
-func respawn():
-
+func respawn() -> void:
 	health = max_health
-
 	dead = false
-
 	hurt = false
+	_clear_combat_state()
 
-	attacking = false
-
-	blocking = false
-
-	current_attack = ""
-
-	velocity = Vector2.ZERO
-
-
-	collision_shape.set_deferred(
-		"disabled",
-		false
-	)
-
-
-	barrier.visible = false
-
-	barrier.stop()
-
-
+	collision_shape.set_deferred("disabled", false)
 	animated_sprite.play("idle")
 
-
-	print("================================")
-	print("KNIGHT RESPAWNED")
-	print("PLAYER ID:", player_id)
-	print("HP:", health)
-	print("================================")
+	print("KNIGHT RESPAWNED | PLAYER ID: ", player_id, " | HP: ", health)

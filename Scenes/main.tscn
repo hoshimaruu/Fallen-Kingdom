@@ -20,5 +20,10 @@ position = Vector2(-159, 5)
 
 [node name="orc" parent="enemies" instance=ExtResource("3_8gbba")]
 position = Vector2(-73, -126)
+max_health = 100
+respawn_time = 3.0
+attack_damage = 10
+attack_range = 70.0
+attack_cooldown = 1.5
 
 [node name="UI" type="CanvasLayer" parent="."]
