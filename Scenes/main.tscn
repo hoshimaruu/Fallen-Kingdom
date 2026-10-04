@@ -1,3 +1,26 @@
+<<<<<<< HEAD
+[gd_scene load_steps=3 format=3 uid="uid://8ge72c5l01n7"]
+
+[ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/knight.tscn" id="1_jjgbg"]
+[ext_resource type="PackedScene" uid="uid://cvclxk2en3ddi" path="res://Scenes/Players/mage.tscn" id="2_8gbba"]
+
+[node name="Main" type="Node2D"]
+position = Vector2(512, 335)
+
+[node name="Player1" type="Node2D" parent="."]
+
+[node name="Knight" parent="Player1" instance=ExtResource("1_jjgbg")]
+
+[node name="Player2" type="Node2D" parent="."]
+
+[node name="Mage" parent="Player2" instance=ExtResource("2_8gbba")]
+position = Vector2(-159, 5)
+
+[node name="enemies" type="Node2D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]
+=======
 [gd_scene format=3 uid="uid://chi407k8hlkqr"]
 
 [node name="Main" type="Node2D"]
+>>>>>>> origin/main

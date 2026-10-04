@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://ddqnbp4une485"]
+
+[ext_resource type="Texture2D" uid="uid://bhjhdkxt6tsdy" path="res://Assets/VFX/PIXELCORE_FreeSampler/frames/wide_arc/frame_013.png" id="1_0c8c7"]
+[ext_resource type="Script" uid="uid://dmiuc24cm5ll6" path="res://Scripts/VFX/knight_slash.gd" id="1_gpwlu"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gpwlu"]
+size = Vector2(12, 31)
+
+[node name="KnightSlash" type="Area2D"]
+script = ExtResource("1_gpwlu")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(-26, 3)
+texture = ExtResource("1_0c8c7")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(-1, 0.5)
+shape = SubResource("RectangleShape2D_gpwlu")
