@@ -10,9 +10,8 @@ config_version=5
 
 [application]
 
-<<<<<<< HEAD
 config/name="Fallen-Kingdom"
-run/main_scene="uid://8ge72c5l01n7"
+run/main_scene="res://Scenes/main.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -89,16 +88,16 @@ p2_attack3={
 ]
 }
 
+[layer_names]
+
+2d_physics/layer_1="Players"
+2d_physics/layer_2="Enemies"
+2d_physics/layer_3="Player Attacks"
+2d_physics/layer_4="Enemy Attacks"
+2d_physics/layer_5="Environment"
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
-=======
-config/name="BSIT_2A_project"
-config/features=PackedStringArray("4.5", "GL Compatibility")
-config/icon="res://icon.svg"
-
-[rendering]
-
->>>>>>> origin/main
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

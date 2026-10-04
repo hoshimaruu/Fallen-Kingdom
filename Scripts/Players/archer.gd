@@ -32,32 +32,30 @@ var dash_timer: float = 0.0
 # =========================================================
 
 @export var max_health: int = 80
+@export var respawn_time: float = 3.0
 
 var health: int
 var dead: bool = false
-
-
-# =========================================================
-# ATTACK DAMAGE
-# =========================================================
-
-@export var attack1_damage: int = 15
-@export var attack2_damage: int = 25
-
-
-# =========================================================
-# NODES
-# =========================================================
-
-@onready var animated_sprite = $AnimatedSprite2D
+var hurt: bool = false
 
 
 # =========================================================
 # ATTACK
 # =========================================================
 
+@export var attack1_damage: int = 15
+@export var attack2_damage: int = 25
+
 var attacking: bool = false
 var current_attack: String = ""
+
+
+# =========================================================
+# NODES
+# =========================================================
+
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 
 # =========================================================
@@ -66,7 +64,9 @@ var current_attack: String = ""
 
 func _ready():
 
-	# Automatically determine player
+	add_to_group("players")
+
+
 	if get_parent().name == "Player1":
 
 		player_id = 1
@@ -82,13 +82,26 @@ func _ready():
 
 	health = max_health
 
+	dead = false
+	hurt = false
+	attacking = false
+	dashing = false
 
+
+	collision_shape.set_deferred(
+		"disabled",
+		false
+	)
+
+
+	print("================================")
 	print("ARCHER READY")
 	print("PLAYER ID:", player_id)
 	print("HP:", health)
-
+	print("GROUPS:", get_groups())
 	print("AVAILABLE ANIMATIONS:")
 	print(animated_sprite.sprite_frames.get_animation_names())
+	print("================================")
 
 
 # =========================================================
@@ -152,7 +165,7 @@ func get_attack3_action() -> String:
 
 
 # =========================================================
-# MAIN LOOP
+# PHYSICS
 # =========================================================
 
 func _physics_process(delta):
@@ -164,9 +177,12 @@ func _physics_process(delta):
 		return
 
 
-	# =====================================================
-	# DASHING
-	# =====================================================
+	if hurt:
+
+		velocity = Vector2.ZERO
+
+		return
+
 
 	if dashing:
 
@@ -179,16 +195,14 @@ func _physics_process(delta):
 
 		move_and_slide()
 
+
 		if dash_timer <= 0:
 
 			end_dash()
 
+
 		return
 
-
-	# =====================================================
-	# ATTACKING
-	# =====================================================
 
 	if attacking:
 
@@ -199,42 +213,32 @@ func _physics_process(delta):
 		return
 
 
-	# =====================================================
-	# ATTACK 1
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack1_action()):
+	if Input.is_action_just_pressed(
+		get_attack1_action()
+	):
 
 		start_attack("attack1")
 
 		return
 
 
-	# =====================================================
-	# ATTACK 2
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack2_action()):
+	if Input.is_action_just_pressed(
+		get_attack2_action()
+	):
 
 		start_attack("attack2")
 
 		return
 
 
-	# =====================================================
-	# ATTACK 3 = DASH
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack3_action()):
+	if Input.is_action_just_pressed(
+		get_attack3_action()
+	):
 
 		start_dash()
 
 		return
 
-
-	# =====================================================
-	# MOVEMENT
-	# =====================================================
 
 	var direction = Input.get_vector(
 		get_left_action(),
@@ -243,12 +247,9 @@ func _physics_process(delta):
 		get_down_action()
 	)
 
+
 	velocity = direction * speed
 
-
-	# =====================================================
-	# FACE LEFT / RIGHT
-	# =====================================================
 
 	if direction.x < 0:
 
@@ -258,10 +259,6 @@ func _physics_process(delta):
 
 		animated_sprite.flip_h = false
 
-
-	# =====================================================
-	# MOVEMENT ANIMATION
-	# =====================================================
 
 	if direction == Vector2.ZERO:
 
@@ -276,12 +273,13 @@ func _physics_process(delta):
 
 
 # =========================================================
-# START DASH
+# DASH
 # =========================================================
 
 func start_dash():
 
-	if dashing:
+	if dashing or dead or hurt or attacking:
+
 		return
 
 
@@ -304,26 +302,24 @@ func start_dash():
 	print("PLAYER", player_id, "ARCHER DASH")
 
 
-# =========================================================
-# END DASH
-# =========================================================
-
 func end_dash():
 
 	dashing = false
 
 	velocity = Vector2.ZERO
 
+
 	print("PLAYER", player_id, "DASH FINISHED")
 
 
 # =========================================================
-# START ATTACK
+# ATTACK
 # =========================================================
 
 func start_attack(animation_name: String):
 
-	if attacking:
+	if attacking or dashing or hurt or dead:
+
 		return
 
 
@@ -334,7 +330,12 @@ func start_attack(animation_name: String):
 	velocity = Vector2.ZERO
 
 
-	print("PLAYER", player_id, "ARCHER ATTACK:", animation_name)
+	print(
+		"PLAYER",
+		player_id,
+		"ARCHER ATTACK:",
+		animation_name
+	)
 
 
 	animated_sprite.stop()
@@ -347,6 +348,11 @@ func start_attack(animation_name: String):
 
 
 	await animated_sprite.animation_finished
+
+
+	if dead or hurt:
+
+		return
 
 
 	end_attack()
@@ -364,14 +370,14 @@ func end_attack():
 
 	velocity = Vector2.ZERO
 
-	animated_sprite.play("idle")
 
+	if not dead and not hurt:
 
-	print("PLAYER", player_id, "ATTACK FINISHED")
+		animated_sprite.play("idle")
 
 
 # =========================================================
-# GET ATTACK DAMAGE
+# ATTACK DAMAGE
 # =========================================================
 
 func get_attack_damage():
@@ -396,6 +402,7 @@ func get_attack_damage():
 func take_damage(damage: int):
 
 	if dead:
+
 		return
 
 
@@ -404,16 +411,62 @@ func take_damage(damage: int):
 	health = max(health, 0)
 
 
-	print("PLAYER", player_id, "ARCHER HIT")
+	print(
+		"PLAYER",
+		player_id,
+		"ARCHER TOOK DAMAGE:",
+		damage
+	)
 
-	print("Damage:", damage)
-
-	print("HP:", health, "/", max_health)
+	print(
+		"ARCHER HP:",
+		health,
+		"/",
+		max_health
+	)
 
 
 	if health <= 0:
 
 		die()
+
+		return
+
+
+	hurt = true
+
+	attacking = false
+
+	dashing = false
+
+	current_attack = ""
+
+	velocity = Vector2.ZERO
+
+
+	animated_sprite.stop()
+
+	animated_sprite.animation = "hurt"
+
+	animated_sprite.frame = 0
+
+	animated_sprite.play()
+
+
+	print("ARCHER HURT")
+
+
+	await animated_sprite.animation_finished
+
+
+	if dead:
+
+		return
+
+
+	hurt = false
+
+	animated_sprite.play("idle")
 
 
 # =========================================================
@@ -423,19 +476,27 @@ func take_damage(damage: int):
 func die():
 
 	if dead:
+
 		return
 
 
 	dead = true
 
+	hurt = false
+
 	attacking = false
 
 	dashing = false
 
+	current_attack = ""
+
 	velocity = Vector2.ZERO
 
 
-	print("PLAYER", player_id, "ARCHER DIED")
+	collision_shape.set_deferred(
+		"disabled",
+		true
+	)
 
 
 	animated_sprite.stop()
@@ -445,3 +506,59 @@ func die():
 	animated_sprite.frame = 0
 
 	animated_sprite.play()
+
+
+	print("PLAYER", player_id, "ARCHER DIED")
+
+
+	await animated_sprite.animation_finished
+
+
+	await get_tree().create_timer(
+		respawn_time
+	).timeout
+
+
+	if not is_inside_tree():
+
+		return
+
+
+	respawn()
+
+
+# =========================================================
+# RESPAWN
+# =========================================================
+
+func respawn():
+
+	health = max_health
+
+	dead = false
+
+	hurt = false
+
+	attacking = false
+
+	dashing = false
+
+	current_attack = ""
+
+	velocity = Vector2.ZERO
+
+
+	collision_shape.set_deferred(
+		"disabled",
+		false
+	)
+
+
+	animated_sprite.play("idle")
+
+
+	print("================================")
+	print("ARCHER RESPAWNED")
+	print("PLAYER ID:", player_id)
+	print("HP:", health)
+	print("================================")

@@ -1,8 +1,8 @@
-<<<<<<< HEAD
-[gd_scene load_steps=3 format=3 uid="uid://8ge72c5l01n7"]
+[gd_scene load_steps=4 format=3 uid="uid://dkhqfjus7e58w"]
 
 [ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/knight.tscn" id="1_jjgbg"]
 [ext_resource type="PackedScene" uid="uid://cvclxk2en3ddi" path="res://Scenes/Players/mage.tscn" id="2_8gbba"]
+[ext_resource type="PackedScene" uid="uid://bdy40qav1uh8h" path="res://Scenes/Enemies/orc.tscn" id="3_8gbba"]
 
 [node name="Main" type="Node2D"]
 position = Vector2(512, 335)
@@ -18,9 +18,7 @@ position = Vector2(-159, 5)
 
 [node name="enemies" type="Node2D" parent="."]
 
-[node name="UI" type="CanvasLayer" parent="."]
-=======
-[gd_scene format=3 uid="uid://chi407k8hlkqr"]
+[node name="orc" parent="enemies" instance=ExtResource("3_8gbba")]
+position = Vector2(-73, -126)
 
-[node name="Main" type="Node2D"]
->>>>>>> origin/main
+[node name="UI" type="CanvasLayer" parent="."]

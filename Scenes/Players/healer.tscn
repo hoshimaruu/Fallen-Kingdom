@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3 uid="uid://bkpsu021qa7ys"]
+[gd_scene load_steps=57 format=3 uid="uid://bkpsu021qa7ys"]
 
 [ext_resource type="Texture2D" uid="uid://kijvjiscc2rq" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Attack.png" id="1_ap6vd"]
 [ext_resource type="Script" uid="uid://diagew80u4jys" path="res://Scripts/Players/healer.gd" id="1_h6o2u"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://ka57qp5s0mgk" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Death.png" id="3_ga3ik"]
 [ext_resource type="Texture2D" uid="uid://c3r7q036trtg5" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Heal(With magic effects).png" id="5_h6o2u"]
 [ext_resource type="Texture2D" uid="uid://bne0ukl7g5q8x" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Idle.png" id="5_vmcd5"]
+[ext_resource type="Texture2D" uid="uid://bt7ndm0d7qqoi" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Hurt.png" id="6_ga3ik"]
 [ext_resource type="Texture2D" uid="uid://uyjksenfqis1" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Walk.png" id="6_gkxca"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_elelt"]
@@ -119,6 +120,22 @@ region = Rect2(400, 0, 100, 100)
 [sub_resource type="AtlasTexture" id="AtlasTexture_8xhmb"]
 atlas = ExtResource("5_h6o2u")
 region = Rect2(500, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_px14y"]
+atlas = ExtResource("6_ga3ik")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6k7vr"]
+atlas = ExtResource("6_ga3ik")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jcet0"]
+atlas = ExtResource("6_ga3ik")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_di0xd"]
+atlas = ExtResource("6_ga3ik")
+region = Rect2(300, 0, 100, 100)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_gho20"]
 atlas = ExtResource("5_vmcd5")
@@ -284,6 +301,23 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_px14y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6k7vr")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jcet0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_di0xd")
+}],
+"loop": false,
+"name": &"hurt",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_gho20")
 }, {
 "duration": 1.0,
@@ -344,8 +378,8 @@ script = ExtResource("1_h6o2u")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_5lvsh")
-animation = &"heal"
-frame = 5
+animation = &"hurt"
+frame = 3
 frame_progress = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]

@@ -1,4 +1,4 @@
-[gd_scene load_steps=63 format=3 uid="uid://cvclxk2en3ddi"]
+[gd_scene load_steps=68 format=3 uid="uid://cvclxk2en3ddi"]
 
 [ext_resource type="Texture2D" uid="uid://baoovlfmln6bb" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack01.png" id="1_26ygk"]
 [ext_resource type="Script" uid="uid://bpuykan5ojypg" path="res://Scripts/Players/mage.gd" id="1_hp4ji"]
@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://bfvgalsetwiwv" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack02(With magic effects).png" id="2_hp4ji"]
 [ext_resource type="Texture2D" uid="uid://cbfj1siu2pxts" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack01(With magic effects).png" id="3_rpchr"]
 [ext_resource type="Texture2D" uid="uid://bb0285y1vmgc8" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Death.png" id="4_hi2t2"]
+[ext_resource type="Texture2D" uid="uid://bqr3jferpxs2v" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Hurt.png" id="6_rpchr"]
 [ext_resource type="Texture2D" uid="uid://cgmni0lvlpcxm" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Walk.png" id="6_tb04i"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_o0aw4"]
@@ -162,6 +163,22 @@ region = Rect2(200, 0, 100, 100)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_o55s4"]
 atlas = ExtResource("4_hi2t2")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_hi2t2"]
+atlas = ExtResource("6_rpchr")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_tb04i"]
+atlas = ExtResource("6_rpchr")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nrwam"]
+atlas = ExtResource("6_rpchr")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_07x7p"]
+atlas = ExtResource("6_rpchr")
 region = Rect2(300, 0, 100, 100)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_s3n87"]
@@ -361,6 +378,23 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_hi2t2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_tb04i")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nrwam")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_07x7p")
+}],
+"loop": false,
+"name": &"hurt",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_s3n87")
 }, {
 "duration": 1.0,
@@ -421,7 +455,9 @@ script = ExtResource("1_hp4ji")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 sprite_frames = SubResource("SpriteFrames_rpchr")
-animation = &"idle"
+animation = &"hurt"
+frame = 3
+frame_progress = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_hp4ji")

@@ -20,9 +20,11 @@ var player_id: int = 0
 # =========================================================
 
 @export var max_health: int = 70
+@export var respawn_time: float = 3.0
 
 var health: int
 var dead: bool = false
+var hurt: bool = false
 
 
 # =========================================================
@@ -35,14 +37,7 @@ var dead: bool = false
 
 
 # =========================================================
-# NODE
-# =========================================================
-
-@onready var animated_sprite = $AnimatedSprite2D
-
-
-# =========================================================
-# ATTACK
+# ATTACK STATE
 # =========================================================
 
 var attacking: bool = false
@@ -50,10 +45,21 @@ var current_attack: String = ""
 
 
 # =========================================================
+# NODES
+# =========================================================
+
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var collision_shape: CollisionShape2D = $CollisionShape2D
+
+
+# =========================================================
 # READY
 # =========================================================
 
 func _ready():
+
+	add_to_group("players")
+
 
 	if get_parent().name == "Player1":
 
@@ -70,13 +76,25 @@ func _ready():
 
 	health = max_health
 
+	dead = false
+	hurt = false
+	attacking = false
 
+
+	collision_shape.set_deferred(
+		"disabled",
+		false
+	)
+
+
+	print("================================")
 	print("MAGE READY")
 	print("PLAYER ID:", player_id)
 	print("HP:", health)
-
+	print("GROUPS:", get_groups())
 	print("AVAILABLE ANIMATIONS:")
 	print(animated_sprite.sprite_frames.get_animation_names())
+	print("================================")
 
 
 # =========================================================
@@ -140,7 +158,7 @@ func get_attack3_action() -> String:
 
 
 # =========================================================
-# MAIN LOOP
+# PHYSICS
 # =========================================================
 
 func _physics_process(_delta):
@@ -152,9 +170,12 @@ func _physics_process(_delta):
 		return
 
 
-	# =====================================================
-	# ATTACKING
-	# =====================================================
+	if hurt:
+
+		velocity = Vector2.ZERO
+
+		return
+
 
 	if attacking:
 
@@ -165,42 +186,32 @@ func _physics_process(_delta):
 		return
 
 
-	# =====================================================
-	# ATTACK 1
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack1_action()):
+	if Input.is_action_just_pressed(
+		get_attack1_action()
+	):
 
 		start_attack("attack1")
 
 		return
 
 
-	# =====================================================
-	# ATTACK 2
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack2_action()):
+	if Input.is_action_just_pressed(
+		get_attack2_action()
+	):
 
 		start_attack("attack2")
 
 		return
 
 
-	# =====================================================
-	# ATTACK 3
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack3_action()):
+	if Input.is_action_just_pressed(
+		get_attack3_action()
+	):
 
 		start_attack("attack3")
 
 		return
 
-
-	# =====================================================
-	# MOVEMENT
-	# =====================================================
 
 	var direction = Input.get_vector(
 		get_left_action(),
@@ -209,12 +220,9 @@ func _physics_process(_delta):
 		get_down_action()
 	)
 
+
 	velocity = direction * speed
 
-
-	# =====================================================
-	# FACE LEFT / RIGHT
-	# =====================================================
 
 	if direction.x < 0:
 
@@ -224,10 +232,6 @@ func _physics_process(_delta):
 
 		animated_sprite.flip_h = false
 
-
-	# =====================================================
-	# MOVEMENT ANIMATION
-	# =====================================================
 
 	if direction == Vector2.ZERO:
 
@@ -242,12 +246,13 @@ func _physics_process(_delta):
 
 
 # =========================================================
-# START ATTACK
+# ATTACK
 # =========================================================
 
 func start_attack(animation_name: String):
 
-	if attacking:
+	if attacking or hurt or dead:
+
 		return
 
 
@@ -258,7 +263,12 @@ func start_attack(animation_name: String):
 	velocity = Vector2.ZERO
 
 
-	print("PLAYER", player_id, "MAGE ATTACK:", animation_name)
+	print(
+		"PLAYER",
+		player_id,
+		"MAGE ATTACK:",
+		animation_name
+	)
 
 
 	animated_sprite.stop()
@@ -271,6 +281,11 @@ func start_attack(animation_name: String):
 
 
 	await animated_sprite.animation_finished
+
+
+	if dead or hurt:
+
+		return
 
 
 	end_attack()
@@ -289,16 +304,13 @@ func end_attack():
 	velocity = Vector2.ZERO
 
 
-	if not dead:
+	if not dead and not hurt:
 
 		animated_sprite.play("idle")
 
 
-	print("PLAYER", player_id, "MAGE ATTACK FINISHED")
-
-
 # =========================================================
-# GET ATTACK DAMAGE
+# ATTACK DAMAGE
 # =========================================================
 
 func get_attack_damage():
@@ -328,6 +340,7 @@ func get_attack_damage():
 func take_damage(damage: int):
 
 	if dead:
+
 		return
 
 
@@ -336,16 +349,60 @@ func take_damage(damage: int):
 	health = max(health, 0)
 
 
-	print("PLAYER", player_id, "MAGE HIT")
+	print(
+		"PLAYER",
+		player_id,
+		"MAGE TOOK DAMAGE:",
+		damage
+	)
 
-	print("Damage:", damage)
-
-	print("HP:", health, "/", max_health)
+	print(
+		"MAGE HP:",
+		health,
+		"/",
+		max_health
+	)
 
 
 	if health <= 0:
 
 		die()
+
+		return
+
+
+	hurt = true
+
+	attacking = false
+
+	current_attack = ""
+
+	velocity = Vector2.ZERO
+
+
+	animated_sprite.stop()
+
+	animated_sprite.animation = "hurt"
+
+	animated_sprite.frame = 0
+
+	animated_sprite.play()
+
+
+	print("MAGE HURT")
+
+
+	await animated_sprite.animation_finished
+
+
+	if dead:
+
+		return
+
+
+	hurt = false
+
+	animated_sprite.play("idle")
 
 
 # =========================================================
@@ -355,17 +412,25 @@ func take_damage(damage: int):
 func die():
 
 	if dead:
+
 		return
 
 
 	dead = true
 
+	hurt = false
+
 	attacking = false
+
+	current_attack = ""
 
 	velocity = Vector2.ZERO
 
 
-	print("PLAYER", player_id, "MAGE DIED")
+	collision_shape.set_deferred(
+		"disabled",
+		true
+	)
 
 
 	animated_sprite.stop()
@@ -375,3 +440,61 @@ func die():
 	animated_sprite.frame = 0
 
 	animated_sprite.play()
+
+
+	print(
+		"PLAYER",
+		player_id,
+		"MAGE DIED"
+	)
+
+
+	await animated_sprite.animation_finished
+
+
+	await get_tree().create_timer(
+		respawn_time
+	).timeout
+
+
+	if not is_inside_tree():
+
+		return
+
+
+	respawn()
+
+
+# =========================================================
+# RESPAWN
+# =========================================================
+
+func respawn():
+
+	health = max_health
+
+	dead = false
+
+	hurt = false
+
+	attacking = false
+
+	current_attack = ""
+
+	velocity = Vector2.ZERO
+
+
+	collision_shape.set_deferred(
+		"disabled",
+		false
+	)
+
+
+	animated_sprite.play("idle")
+
+
+	print("================================")
+	print("MAGE RESPAWNED")
+	print("PLAYER ID:", player_id)
+	print("HP:", health)
+	print("================================")
