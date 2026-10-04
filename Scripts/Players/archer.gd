@@ -2,6 +2,13 @@ extends CharacterBody2D
 
 
 # =========================================================
+# PLAYER ID
+# =========================================================
+
+var player_id: int = 0
+
+
+# =========================================================
 # MOVEMENT
 # =========================================================
 
@@ -59,9 +66,25 @@ var current_attack: String = ""
 
 func _ready():
 
+	# Automatically determine player
+	if get_parent().name == "Player1":
+
+		player_id = 1
+
+	elif get_parent().name == "Player2":
+
+		player_id = 2
+
+	else:
+
+		print("WARNING: Archer is not under Player1 or Player2")
+
+
 	health = max_health
 
+
 	print("ARCHER READY")
+	print("PLAYER ID:", player_id)
 	print("HP:", health)
 
 	print("AVAILABLE ANIMATIONS:")
@@ -69,14 +92,70 @@ func _ready():
 
 
 # =========================================================
+# INPUT ACTIONS
+# =========================================================
+
+func get_up_action() -> String:
+
+	if player_id == 1:
+		return "p1_up"
+
+	return "p2_up"
+
+
+func get_down_action() -> String:
+
+	if player_id == 1:
+		return "p1_down"
+
+	return "p2_down"
+
+
+func get_left_action() -> String:
+
+	if player_id == 1:
+		return "p1_left"
+
+	return "p2_left"
+
+
+func get_right_action() -> String:
+
+	if player_id == 1:
+		return "p1_right"
+
+	return "p2_right"
+
+
+func get_attack1_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack1"
+
+	return "p2_attack1"
+
+
+func get_attack2_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack2"
+
+	return "p2_attack2"
+
+
+func get_attack3_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack3"
+
+	return "p2_attack3"
+
+
+# =========================================================
 # MAIN LOOP
 # =========================================================
 
 func _physics_process(delta):
-
-	# =====================================================
-	# DEAD
-	# =====================================================
 
 	if dead:
 
@@ -124,7 +203,7 @@ func _physics_process(delta):
 	# ATTACK 1
 	# =====================================================
 
-	if Input.is_action_just_pressed("attack1"):
+	if Input.is_action_just_pressed(get_attack1_action()):
 
 		start_attack("attack1")
 
@@ -135,7 +214,7 @@ func _physics_process(delta):
 	# ATTACK 2
 	# =====================================================
 
-	if Input.is_action_just_pressed("attack2"):
+	if Input.is_action_just_pressed(get_attack2_action()):
 
 		start_attack("attack2")
 
@@ -146,7 +225,7 @@ func _physics_process(delta):
 	# ATTACK 3 = DASH
 	# =====================================================
 
-	if Input.is_action_just_pressed("attack3"):
+	if Input.is_action_just_pressed(get_attack3_action()):
 
 		start_dash()
 
@@ -158,12 +237,11 @@ func _physics_process(delta):
 	# =====================================================
 
 	var direction = Input.get_vector(
-		"move_left",
-		"move_right",
-		"move_up",
-		"move_down"
+		get_left_action(),
+		get_right_action(),
+		get_up_action(),
+		get_down_action()
 	)
-
 
 	velocity = direction * speed
 
@@ -175,7 +253,6 @@ func _physics_process(delta):
 	if direction.x < 0:
 
 		animated_sprite.flip_h = true
-
 
 	elif direction.x > 0:
 
@@ -215,10 +292,6 @@ func start_dash():
 	velocity = Vector2.ZERO
 
 
-	# =====================================================
-	# DASH DIRECTION
-	# =====================================================
-
 	if animated_sprite.flip_h:
 
 		dash_direction = -1.0
@@ -228,7 +301,7 @@ func start_dash():
 		dash_direction = 1.0
 
 
-	print("ARCHER DASH")
+	print("PLAYER", player_id, "ARCHER DASH")
 
 
 # =========================================================
@@ -241,7 +314,7 @@ func end_dash():
 
 	velocity = Vector2.ZERO
 
-	print("DASH FINISHED")
+	print("PLAYER", player_id, "DASH FINISHED")
 
 
 # =========================================================
@@ -261,12 +334,8 @@ func start_attack(animation_name: String):
 	velocity = Vector2.ZERO
 
 
-	print("ARCHER ATTACK:", animation_name)
+	print("PLAYER", player_id, "ARCHER ATTACK:", animation_name)
 
-
-	# =====================================================
-	# PLAY ATTACK ANIMATION
-	# =====================================================
 
 	animated_sprite.stop()
 
@@ -276,8 +345,6 @@ func start_attack(animation_name: String):
 
 	animated_sprite.play()
 
-
-	# Wait until attack animation finishes
 
 	await animated_sprite.animation_finished
 
@@ -300,7 +367,7 @@ func end_attack():
 	animated_sprite.play("idle")
 
 
-	print("ATTACK FINISHED")
+	print("PLAYER", player_id, "ATTACK FINISHED")
 
 
 # =========================================================
@@ -337,7 +404,7 @@ func take_damage(damage: int):
 	health = max(health, 0)
 
 
-	print("ARCHER HIT")
+	print("PLAYER", player_id, "ARCHER HIT")
 
 	print("Damage:", damage)
 
@@ -368,7 +435,7 @@ func die():
 	velocity = Vector2.ZERO
 
 
-	print("ARCHER DIED")
+	print("PLAYER", player_id, "ARCHER DIED")
 
 
 	animated_sprite.stop()

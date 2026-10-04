@@ -1,4 +1,21 @@
-[gd_scene format=3 uid="uid://8ge72c5l01n7"]
+[gd_scene load_steps=3 format=3 uid="uid://8ge72c5l01n7"]
+
+[ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/knight.tscn" id="1_jjgbg"]
+[ext_resource type="PackedScene" uid="uid://cnf8sjx6swfkc" path="res://Scenes/Players/archer.tscn" id="2_bo1nx"]
 
 [node name="Main" type="Node2D"]
 position = Vector2(512, 335)
+
+[node name="Player1" type="Node2D" parent="."]
+
+[node name="Knight" parent="Player1" instance=ExtResource("1_jjgbg")]
+position = Vector2(-82, -5)
+
+[node name="Player2" type="Node2D" parent="."]
+
+[node name="archer" parent="Player2" instance=ExtResource("2_bo1nx")]
+position = Vector2(223, -7)
+
+[node name="enemies" type="Node2D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="."]

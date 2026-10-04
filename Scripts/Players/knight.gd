@@ -2,6 +2,13 @@ extends CharacterBody2D
 
 
 # =========================================================
+# PLAYER ID
+# =========================================================
+
+var player_id: int = 0
+
+
+# =========================================================
 # MOVEMENT
 # =========================================================
 
@@ -49,16 +56,90 @@ var current_attack: String = ""
 
 func _ready():
 
+	if get_parent().name == "Player1":
+
+		player_id = 1
+
+	elif get_parent().name == "Player2":
+
+		player_id = 2
+
+	else:
+
+		print("WARNING: Knight is not under Player1 or Player2")
+
+
 	health = max_health
 
-	# Attack hitbox starts disabled
 	attack_area.monitoring = false
 
-	print("PLAYER READY")
+
+	print("KNIGHT READY")
+	print("PLAYER ID:", player_id)
 	print("HP:", health)
 
 	print("AVAILABLE ANIMATIONS:")
 	print(animated_sprite.sprite_frames.get_animation_names())
+
+
+# =========================================================
+# INPUT ACTIONS
+# =========================================================
+
+func get_up_action() -> String:
+
+	if player_id == 1:
+		return "p1_up"
+
+	return "p2_up"
+
+
+func get_down_action() -> String:
+
+	if player_id == 1:
+		return "p1_down"
+
+	return "p2_down"
+
+
+func get_left_action() -> String:
+
+	if player_id == 1:
+		return "p1_left"
+
+	return "p2_left"
+
+
+func get_right_action() -> String:
+
+	if player_id == 1:
+		return "p1_right"
+
+	return "p2_right"
+
+
+func get_attack1_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack1"
+
+	return "p2_attack1"
+
+
+func get_attack2_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack2"
+
+	return "p2_attack2"
+
+
+func get_attack3_action() -> String:
+
+	if player_id == 1:
+		return "p1_attack3"
+
+	return "p2_attack3"
 
 
 # =========================================================
@@ -67,12 +148,10 @@ func _ready():
 
 func _physics_process(_delta):
 
-	# =====================================================
-	# DEAD
-	# =====================================================
-
 	if dead:
+
 		velocity = Vector2.ZERO
+
 		return
 
 
@@ -90,19 +169,35 @@ func _physics_process(_delta):
 
 
 	# =====================================================
-	# ATTACK INPUT
+	# ATTACK 1
 	# =====================================================
 
-	if Input.is_action_just_pressed("attack1"):
+	if Input.is_action_just_pressed(get_attack1_action()):
+
 		start_attack("attack1")
+
 		return
 
-	if Input.is_action_just_pressed("attack2"):
+
+	# =====================================================
+	# ATTACK 2
+	# =====================================================
+
+	if Input.is_action_just_pressed(get_attack2_action()):
+
 		start_attack("attack2")
+
 		return
 
-	if Input.is_action_just_pressed("attack3"):
+
+	# =====================================================
+	# ATTACK 3
+	# =====================================================
+
+	if Input.is_action_just_pressed(get_attack3_action()):
+
 		start_attack("attack3")
+
 		return
 
 
@@ -111,12 +206,11 @@ func _physics_process(_delta):
 	# =====================================================
 
 	var direction = Input.get_vector(
-		"move_left",
-		"move_right",
-		"move_up",
-		"move_down"
+		get_left_action(),
+		get_right_action(),
+		get_up_action(),
+		get_down_action()
 	)
-
 
 	velocity = direction * speed
 
@@ -129,15 +223,12 @@ func _physics_process(_delta):
 
 		animated_sprite.flip_h = true
 
-		# AttackArea faces left
 		attack_area.scale.x = -1
-
 
 	elif direction.x > 0:
 
 		animated_sprite.flip_h = false
 
-		# AttackArea faces right
 		attack_area.scale.x = 1
 
 
@@ -166,6 +257,7 @@ func start_attack(animation_name: String):
 	if attacking:
 		return
 
+
 	if dead:
 		return
 
@@ -176,28 +268,27 @@ func start_attack(animation_name: String):
 
 	velocity = Vector2.ZERO
 
-	# Disable hitbox before attack
 	attack_area.monitoring = false
 
 
 	print("================================")
-	print("ATTACK START")
+	print("PLAYER", player_id, "KNIGHT ATTACK")
 	print("Animation:", animation_name)
 	print("================================")
 
 
-	# Make absolutely sure the animation starts
 	animated_sprite.stop()
+
 	animated_sprite.animation = animation_name
+
 	animated_sprite.frame = 0
+
 	animated_sprite.play()
 
 
-	# Wait for animation to finish
 	await animated_sprite.animation_finished
 
 
-	# Attack is finished
 	end_attack()
 
 
@@ -207,7 +298,7 @@ func start_attack(animation_name: String):
 
 func end_attack():
 
-	print("ATTACK FINISHED:", current_attack)
+	print("PLAYER", player_id, "ATTACK FINISHED:", current_attack)
 
 	attack_area.monitoring = false
 
@@ -237,11 +328,9 @@ func perform_attack():
 
 		damage = attack1_damage
 
-
 	elif current_attack == "attack2":
 
 		damage = attack2_damage
-
 
 	elif current_attack == "attack3":
 
@@ -249,25 +338,25 @@ func perform_attack():
 
 
 	if damage <= 0:
+
 		return
 
 
-	print("ATTACK HIT")
+	print("PLAYER", player_id, "KNIGHT ATTACK HIT")
+
 	print("Damage:", damage)
 
 
-	# Check everything inside AttackArea
 	var bodies = attack_area.get_overlapping_bodies()
 
 
 	for body in bodies:
 
-		# Don't damage yourself
 		if body == self:
+
 			continue
 
 
-		# Check if the enemy has take_damage()
 		if body.has_method("take_damage"):
 
 			body.take_damage(damage)
@@ -290,8 +379,10 @@ func take_damage(damage: int):
 	health = max(health, 0)
 
 
-	print("PLAYER HIT")
+	print("PLAYER", player_id, "KNIGHT HIT")
+
 	print("Damage:", damage)
+
 	print("HP:", health, "/", max_health)
 
 
@@ -319,10 +410,13 @@ func die():
 	attack_area.monitoring = false
 
 
-	print("PLAYER DIED")
+	print("PLAYER", player_id, "KNIGHT DIED")
 
 
 	animated_sprite.stop()
+
 	animated_sprite.animation = "death"
+
 	animated_sprite.frame = 0
+
 	animated_sprite.play()
