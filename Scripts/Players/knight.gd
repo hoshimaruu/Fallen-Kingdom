@@ -21,17 +21,41 @@ var player_id: int = 0
 
 @export var max_health: int = 100
 
-var health: int
+var health: int = max_health
 var dead: bool = false
 
 
 # =========================================================
-# ATTACK DAMAGE
+# ATTACKS
 # =========================================================
 
 @export var attack1_damage: int = 10
 @export var attack2_damage: int = 15
-@export var attack3_damage: int = 25
+
+var attacking: bool = false
+var current_attack: String = ""
+
+
+# =========================================================
+# ATTACK 2 - RED SLASH
+# =========================================================
+
+@export var slash_scene: PackedScene
+
+# Slash appears on frame 8
+@export var slash_release_frame: int = 8
+
+
+# =========================================================
+# ATTACK 3 - BLOCK
+# =========================================================
+
+var blocking: bool = false
+
+@export var block_duration: float = 1.5
+
+# 0.8 = 80% damage reduction
+@export var block_damage_reduction: float = 0.8
 
 
 # =========================================================
@@ -40,14 +64,7 @@ var dead: bool = false
 
 @onready var animated_sprite = $AnimatedSprite2D
 @onready var attack_area = $AttackArea
-
-
-# =========================================================
-# ATTACK VARIABLES
-# =========================================================
-
-var attacking: bool = false
-var current_attack: String = ""
+@onready var barrier = $Barrier
 
 
 # =========================================================
@@ -56,28 +73,27 @@ var current_attack: String = ""
 
 func _ready():
 
-	if get_parent().name == "Player1":
+	var parent_name = get_parent().name
 
+	if parent_name == "Player1":
 		player_id = 1
 
-	elif get_parent().name == "Player2":
-
+	elif parent_name == "Player2":
 		player_id = 2
 
 	else:
-
 		print("WARNING: Knight is not under Player1 or Player2")
-
 
 	health = max_health
 
 	attack_area.monitoring = false
 
+	# Barrier starts hidden
+	barrier.visible = false
 
 	print("KNIGHT READY")
 	print("PLAYER ID:", player_id)
 	print("HP:", health)
-
 	print("AVAILABLE ANIMATIONS:")
 	print(animated_sprite.sprite_frames.get_animation_names())
 
@@ -143,7 +159,7 @@ func get_attack3_action() -> String:
 
 
 # =========================================================
-# MAIN LOOP
+# PHYSICS
 # =========================================================
 
 func _physics_process(_delta):
@@ -151,7 +167,17 @@ func _physics_process(_delta):
 	if dead:
 
 		velocity = Vector2.ZERO
+		return
 
+
+	# =====================================================
+	# BLOCKING
+	# =====================================================
+
+	if blocking:
+
+		velocity = Vector2.ZERO
+		move_and_slide()
 		return
 
 
@@ -162,42 +188,7 @@ func _physics_process(_delta):
 	if attacking:
 
 		velocity = Vector2.ZERO
-
 		move_and_slide()
-
-		return
-
-
-	# =====================================================
-	# ATTACK 1
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack1_action()):
-
-		start_attack("attack1")
-
-		return
-
-
-	# =====================================================
-	# ATTACK 2
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack2_action()):
-
-		start_attack("attack2")
-
-		return
-
-
-	# =====================================================
-	# ATTACK 3
-	# =====================================================
-
-	if Input.is_action_just_pressed(get_attack3_action()):
-
-		start_attack("attack3")
-
 		return
 
 
@@ -214,158 +205,274 @@ func _physics_process(_delta):
 
 	velocity = direction * speed
 
+	move_and_slide()
+
 
 	# =====================================================
-	# FACE LEFT / RIGHT
+	# SPRITE FACING
 	# =====================================================
 
 	if direction.x < 0:
 
 		animated_sprite.flip_h = true
 
-		attack_area.scale.x = -1
-
 	elif direction.x > 0:
 
 		animated_sprite.flip_h = false
-
-		attack_area.scale.x = 1
 
 
 	# =====================================================
 	# MOVEMENT ANIMATION
 	# =====================================================
 
-	if direction == Vector2.ZERO:
+	if direction != Vector2.ZERO:
 
-		animated_sprite.play("idle")
+		if animated_sprite.animation != "walk":
+			animated_sprite.play("walk")
 
 	else:
 
-		animated_sprite.play("walk")
+		if animated_sprite.animation != "idle":
+			animated_sprite.play("idle")
 
 
-	move_and_slide()
+	# =====================================================
+	# ATTACK INPUT
+	# =====================================================
+
+	if Input.is_action_just_pressed(get_attack1_action()):
+
+		start_attack("attack1")
+
+	elif Input.is_action_just_pressed(get_attack2_action()):
+
+		start_attack("attack2")
+
+	elif Input.is_action_just_pressed(get_attack3_action()):
+
+		start_block()
 
 
 # =========================================================
-# START ATTACK
+# ATTACK 1 / ATTACK 2
 # =========================================================
 
-func start_attack(animation_name: String):
+func start_attack(attack_name: String):
 
-	if attacking:
+	if attacking or blocking or dead:
 		return
 
+	attacking = true
+	current_attack = attack_name
+
+	velocity = Vector2.ZERO
+
+	attack_area.monitoring = false
+
+
+	# =====================================================
+	# PLAY ATTACK ANIMATION
+	# =====================================================
+
+	animated_sprite.stop()
+	animated_sprite.animation = attack_name
+	animated_sprite.frame = 0
+	animated_sprite.play()
+
+
+	# =====================================================
+	# ATTACK 2 PROJECTILE
+	# =====================================================
+
+	if attack_name == "attack2":
+
+		await wait_for_slash_frame()
+
+		if dead:
+			return
+
+		fire_slash()
+
+
+	# =====================================================
+	# WAIT FOR ATTACK TO FINISH
+	# =====================================================
+
+	await animated_sprite.animation_finished
 
 	if dead:
 		return
 
-
-	attacking = true
-
-	current_attack = animation_name
-
-	velocity = Vector2.ZERO
-
-	attack_area.monitoring = false
-
-
-	print("================================")
-	print("PLAYER", player_id, "KNIGHT ATTACK")
-	print("Animation:", animation_name)
-	print("================================")
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = animation_name
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
-
-	await animated_sprite.animation_finished
-
-
-	end_attack()
-
-
-# =========================================================
-# END ATTACK
-# =========================================================
-
-func end_attack():
-
-	print("PLAYER", player_id, "ATTACK FINISHED:", current_attack)
-
-	attack_area.monitoring = false
-
 	attacking = false
-
 	current_attack = ""
 
-	velocity = Vector2.ZERO
+	attack_area.monitoring = false
 
 	animated_sprite.play("idle")
 
 
 # =========================================================
-# ATTACK DAMAGE
+# WAIT FOR ATTACK 2 RELEASE FRAME
 # =========================================================
 
-func perform_attack():
+func wait_for_slash_frame():
+
+	while animated_sprite.frame < slash_release_frame:
+
+		await animated_sprite.frame_changed
+
+		if dead:
+			return
+
+
+# =========================================================
+# FIRE RED SLASH
+# =========================================================
+
+func fire_slash():
+
+	if slash_scene == null:
+
+		print("ERROR: Knight Slash Scene is not assigned!")
+		return
+
+
+	# =====================================================
+	# CREATE PROJECTILE
+	# =====================================================
+
+	var slash = slash_scene.instantiate()
+
+
+	# =====================================================
+	# ADD PROJECTILE TO MAIN
+	# =====================================================
+
+	get_parent().get_parent().add_child(slash)
+
+
+	# =====================================================
+	# DETERMINE FACING DIRECTION
+	# =====================================================
+
+	var facing_direction := 1.0
+
+	if animated_sprite.flip_h:
+
+		facing_direction = -1.0
+
+
+	# =====================================================
+	# SPAWN SLIGHTLY IN FRONT OF KNIGHT
+	# =====================================================
+
+	slash.global_position = global_position + Vector2(
+		facing_direction * 35.0,
+		0
+	)
+
+
+	# =====================================================
+	# SET PROJECTILE DIRECTION
+	# =====================================================
+
+	slash.direction = Vector2(
+		facing_direction,
+		0
+	)
+
+
+	# =====================================================
+	# FLIP PROJECTILE WHEN GOING LEFT
+	# =====================================================
+
+	if facing_direction < 0:
+
+		slash.scale.x = -1
+
+
+	print("KNIGHT FIRED RED SLASH")
+
+
+# =========================================================
+# ATTACK 3 = BLOCK
+# =========================================================
+
+func start_block():
+
+	if attacking or blocking or dead:
+		return
+
+	blocking = true
+
+	velocity = Vector2.ZERO
+
+	attack_area.monitoring = false
+
+
+	# =====================================================
+	# PLAY ATTACK 3 BLOCK ANIMATION
+	# =====================================================
+
+	animated_sprite.stop()
+	animated_sprite.animation = "attack3"
+	animated_sprite.frame = 0
+	animated_sprite.play()
+
+
+	# =====================================================
+	# SHOW BARRIER
+	# =====================================================
+
+	barrier.visible = true
+	barrier.play()
+
+
+	# =====================================================
+	# WAIT FOR BLOCK ANIMATION
+	# =====================================================
+
+	await animated_sprite.animation_finished
 
 	if dead:
 		return
 
 
-	var damage = 0
+	# =====================================================
+	# HOLD LAST FRAME
+	# =====================================================
+
+	animated_sprite.stop()
+
+	animated_sprite.frame = (
+		animated_sprite.sprite_frames.get_frame_count("attack3") - 1
+	)
 
 
-	if current_attack == "attack1":
+	# =====================================================
+	# BLOCK DURATION
+	# =====================================================
 
-		damage = attack1_damage
+	await get_tree().create_timer(block_duration).timeout
 
-	elif current_attack == "attack2":
-
-		damage = attack2_damage
-
-	elif current_attack == "attack3":
-
-		damage = attack3_damage
-
-
-	if damage <= 0:
-
+	if dead:
 		return
 
 
-	print("PLAYER", player_id, "KNIGHT ATTACK HIT")
+	# =====================================================
+	# END BLOCK
+	# =====================================================
 
-	print("Damage:", damage)
+	blocking = false
 
+	barrier.visible = false
+	barrier.stop()
 
-	var bodies = attack_area.get_overlapping_bodies()
-
-
-	for body in bodies:
-
-		if body == self:
-
-			continue
-
-
-		if body.has_method("take_damage"):
-
-			body.take_damage(damage)
-
-			print("Hit:", body.name)
+	animated_sprite.play("idle")
 
 
 # =========================================================
-# TAKE DAMAGE
+# DAMAGE
 # =========================================================
 
 func take_damage(damage: int):
@@ -374,16 +481,27 @@ func take_damage(damage: int):
 		return
 
 
+	# =====================================================
+	# BLOCK DAMAGE REDUCTION
+	# =====================================================
+
+	if blocking:
+
+		damage = int(
+			damage * (1.0 - block_damage_reduction)
+		)
+
+		print("KNIGHT BLOCKED!")
+		print("Reduced damage:", damage)
+
+
+	# =====================================================
+	# APPLY DAMAGE
+	# =====================================================
+
 	health -= damage
 
-	health = max(health, 0)
-
-
-	print("PLAYER", player_id, "KNIGHT HIT")
-
-	print("Damage:", damage)
-
-	print("HP:", health, "/", max_health)
+	print("KNIGHT HP:", health)
 
 
 	if health <= 0:
@@ -400,23 +518,36 @@ func die():
 	if dead:
 		return
 
-
 	dead = true
 
 	attacking = false
+	blocking = false
 
 	velocity = Vector2.ZERO
 
 	attack_area.monitoring = false
 
 
-	print("PLAYER", player_id, "KNIGHT DIED")
+	# =====================================================
+	# HIDE BARRIER
+	# =====================================================
 
+	barrier.visible = false
+	barrier.stop()
+
+
+	# =====================================================
+	# PLAY DEATH ANIMATION
+	# =====================================================
 
 	animated_sprite.stop()
-
 	animated_sprite.animation = "death"
-
 	animated_sprite.frame = 0
-
 	animated_sprite.play()
+
+	print("KNIGHT DIED")
+
+
+	await animated_sprite.animation_finished
+
+	animated_sprite.stop()
