@@ -10,6 +10,7 @@ config_version=5
 
 [application]
 
+<<<<<<< HEAD
 config/name="Fallen-Kingdom"
 run/main_scene="uid://8ge72c5l01n7"
 config/features=PackedStringArray("4.5", "GL Compatibility")
@@ -91,5 +92,13 @@ p2_attack3={
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
+=======
+config/name="BSIT_2A_project"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[rendering]
+
+>>>>>>> origin/main
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

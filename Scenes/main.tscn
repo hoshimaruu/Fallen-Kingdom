@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [gd_scene load_steps=3 format=3 uid="uid://8ge72c5l01n7"]
 
 [ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/knight.tscn" id="1_jjgbg"]
@@ -18,3 +19,8 @@ position = Vector2(-159, 5)
 [node name="enemies" type="Node2D" parent="."]
 
 [node name="UI" type="CanvasLayer" parent="."]
+=======
+[gd_scene format=3 uid="uid://chi407k8hlkqr"]
+
+[node name="Main" type="Node2D"]
+>>>>>>> origin/main
