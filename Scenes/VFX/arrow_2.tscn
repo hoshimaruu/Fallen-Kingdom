@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3 uid="uid://cti5sscn7g0l5"]
+
+[ext_resource type="Script" uid="uid://rd3rfww7cqnk" path="res://Scripts/VFX/arrow_2.gd" id="1_foo0p"]
+[ext_resource type="Texture2D" uid="uid://bgxx3xrf8usol" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Archer/Arrow(projectile)/Arrow02(100x100).png" id="1_h6mrb"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_foo0p"]
+size = Vector2(18, 5)
+
+[node name="Arrow2" type="Area2D"]
+script = ExtResource("1_foo0p")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("1_h6mrb")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(2, 0.5)
+shape = SubResource("RectangleShape2D_foo0p")
