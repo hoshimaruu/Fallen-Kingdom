@@ -1,0 +1,100 @@
+[gd_scene load_steps=15 format=3 uid="uid://c1ggjlettm1g"]
+
+[ext_resource type="Texture2D" uid="uid://bntkffnjparda" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack01_Effect.png" id="1_ssmcx"]
+[ext_resource type="Script" uid="uid://di0suehnj2jyx" path="res://Scripts/VFX/ice.gd" id="1_u8rvp"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u8rvp"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ibk7y"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nfkir"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bh4yl"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_l83qc"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(400, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_388m0"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(500, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_orxi2"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(600, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_g72t5"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(700, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wfcv7"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(800, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_dqm75"]
+atlas = ExtResource("1_ssmcx")
+region = Rect2(900, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_pc2np"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u8rvp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ibk7y")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_nfkir")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bh4yl")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_l83qc")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_388m0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_orxi2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_g72t5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wfcv7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_dqm75")
+}],
+"loop": false,
+"name": &"ice",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_ssmcx"]
+radius = 11.0
+
+[node name="Ice" type="Area2D"]
+collision_layer = 4
+collision_mask = 18
+script = ExtResource("1_u8rvp")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(-3, -1)
+sprite_frames = SubResource("SpriteFrames_pc2np")
+animation = &"ice"
+frame = 9
+frame_progress = 1.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_ssmcx")

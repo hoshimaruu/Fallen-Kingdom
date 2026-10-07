@@ -22,6 +22,10 @@ extends CharacterBody2D
 # --- Attack area ---
 @export var attack_area_distance: float = 35.0
 
+# --- Hit flash ---
+@export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
+@export var hit_flash_time: float = 0.25
+
 # --- State ---
 var player_id: int = 0
 var health: int
@@ -31,6 +35,9 @@ var attacking: bool = false
 var blocking: bool = false
 var current_attack: String = ""
 var hit_targets: Array = []
+
+var base_modulate: Color = Color.WHITE
+var flash_tween: Tween
 
 # --- Input action names (filled in by _setup_actions) ---
 var act_up: String
@@ -71,6 +78,8 @@ func _ready() -> void:
 	attacking = false
 	blocking = false
 
+	base_modulate = animated_sprite.modulate
+
 	attack_area.monitoring = false
 	barrier.visible = false
 	collision_shape.set_deferred("disabled", false)
@@ -82,7 +91,7 @@ func _ready() -> void:
 
 
 func _setup_actions() -> void:
-	# Anything that isn't player 1 uses the p2_ actions (same as before)
+	# Anything that isn't player 1 uses the p2_ actions
 	var prefix := "p1_" if player_id == 1 else "p2_"
 
 	act_up = prefix + "up"
@@ -117,6 +126,16 @@ func _clear_combat_state() -> void:
 
 func update_attack_area_direction() -> void:
 	attack_area.position.x = -abs(attack_area_distance) if animated_sprite.flip_h else abs(attack_area_distance)
+
+
+func flash_red() -> void:
+	if flash_tween:
+		flash_tween.kill()
+
+	animated_sprite.modulate = hit_flash_color
+
+	flash_tween = create_tween()
+	flash_tween.tween_property(animated_sprite, "modulate", base_modulate, hit_flash_time)
 
 
 # =========================================================
@@ -292,6 +311,10 @@ func take_damage(damage: int) -> void:
 	health = max(health - damage, 0)
 	print("KNIGHT HP: ", health, "/", max_health)
 
+	# Red flash, even while attacking or blocking (skipped if fully blocked)
+	if damage > 0:
+		flash_red()
+
 	if health <= 0:
 		die()
 		return
@@ -340,6 +363,10 @@ func respawn() -> void:
 	dead = false
 	hurt = false
 	_clear_combat_state()
+
+	if flash_tween:
+		flash_tween.kill()
+	animated_sprite.modulate = base_modulate
 
 	collision_shape.set_deferred("disabled", false)
 	animated_sprite.play("idle")

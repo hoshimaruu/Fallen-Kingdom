@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://dkhqfjus7e58w"]
 
-[ext_resource type="PackedScene" uid="uid://cnf8sjx6swfkc" path="res://Scenes/Players/archer.tscn" id="1_8gbba"]
+[ext_resource type="PackedScene" uid="uid://cvclxk2en3ddi" path="res://Scenes/Players/Mage/mage.tscn" id="1_bo1nx"]
 [ext_resource type="PackedScene" uid="uid://bdy40qav1uh8h" path="res://Scenes/Enemies/orc.tscn" id="3_8gbba"]
 
 [node name="Main" type="Node2D"]
@@ -8,8 +8,7 @@ position = Vector2(512, 335)
 
 [node name="Player1" type="Node2D" parent="."]
 
-[node name="archer" parent="Player1" instance=ExtResource("1_8gbba")]
-position = Vector2(383, -43)
+[node name="Mage" parent="Player1" instance=ExtResource("1_bo1nx")]
 
 [node name="Player2" type="Node2D" parent="."]
 

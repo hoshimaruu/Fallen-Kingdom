@@ -1,0 +1,79 @@
+[gd_scene load_steps=12 format=3 uid="uid://hq5ed8ot41xi"]
+
+[ext_resource type="Script" uid="uid://bw0nem75opdxn" path="res://Scripts/VFX/fireball.gd" id="1_bnaqw"]
+[ext_resource type="Texture2D" uid="uid://bfa351eccw8m" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack02_Effect.png" id="2_wtxkr"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_txhye"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jscl8"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_qh3ys"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_llsb1"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_0s3pp"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(400, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_62bka"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(500, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5bn7h"]
+atlas = ExtResource("2_wtxkr")
+region = Rect2(600, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_im7wv"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_txhye")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jscl8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qh3ys")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_llsb1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_0s3pp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_62bka")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5bn7h")
+}],
+"loop": false,
+"name": &"Fireball",
+"speed": 5.0
+}]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_eavvy"]
+radius = 7.0
+
+[node name="Fireball" type="Area2D"]
+collision_layer = 4
+collision_mask = 18
+script = ExtResource("1_bnaqw")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_im7wv")
+animation = &"Fireball"
+frame = 6
+frame_progress = 1.0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(4, 1)
+shape = SubResource("CircleShape2D_eavvy")

@@ -1,59 +1,44 @@
 extends CharacterBody2D
 
-
-# =========================================================
-# PLAYER ID
-# =========================================================
-
-var player_id: int = 0
-
-
-# =========================================================
-# MOVEMENT
-# =========================================================
-
+# --- Movement ---
 @export var speed: float = 180.0
 
-
-# =========================================================
-# HEALTH
-# =========================================================
-
+# --- Health ---
 @export var max_health: int = 100
 @export var respawn_time: float = 3.0
 
-var health: int
-var dead: bool = false
-var hurt: bool = false
-
-
-# =========================================================
-# ATTACK DAMAGE
-# =========================================================
-
+# --- Attack damage ---
 @export var attack1_damage: int = 10
 @export var attack2_damage: int = 15
 
-
-# =========================================================
-# HEAL
-# =========================================================
-
+# --- Heal ---
 @export var heal_amount: int = 30
 
+# --- Hit flash ---
+@export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
+@export var hit_flash_time: float = 0.25
 
-# =========================================================
-# ATTACK STATE
-# =========================================================
-
+# --- State ---
+var player_id: int = 0
+var health: int
+var dead: bool = false
+var hurt: bool = false
 var attacking: bool = false
 var current_attack: String = ""
 
+var base_modulate: Color = Color.WHITE
+var flash_tween: Tween
 
-# =========================================================
-# NODES
-# =========================================================
+# --- Input action names (filled in by _setup_actions) ---
+var act_up: String
+var act_down: String
+var act_left: String
+var act_right: String
+var act_attack1: String
+var act_attack2: String
+var act_attack3: String   # heal
 
+# --- Nodes ---
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
@@ -62,512 +47,248 @@ var current_attack: String = ""
 # READY
 # =========================================================
 
-func _ready():
-
+func _ready() -> void:
 	add_to_group("players")
 
+	match get_parent().name:
+		"Player1":
+			player_id = 1
+		"Player2":
+			player_id = 2
+		_:
+			print("WARNING: Healer is not under Player1 or Player2")
 
-	if get_parent().name == "Player1":
-
-		player_id = 1
-
-	elif get_parent().name == "Player2":
-
-		player_id = 2
-
-	else:
-
-		print("WARNING: Healer is not under Player1 or Player2")
-
+	_setup_actions()
 
 	health = max_health
-
 	dead = false
 	hurt = false
 	attacking = false
 
+	base_modulate = animated_sprite.modulate
 
-	collision_shape.set_deferred(
-		"disabled",
-		false
-	)
+	collision_shape.set_deferred("disabled", false)
+
+	print("HEALER READY | PLAYER ID: ", player_id, " | HP: ", health)
+	print("ANIMATIONS: ", animated_sprite.sprite_frames.get_animation_names())
 
 
-	print("================================")
-	print("HEALER READY")
-	print("PLAYER ID:", player_id)
-	print("HP:", health)
-	print("GROUPS:", get_groups())
-	print("AVAILABLE ANIMATIONS:")
-	print(animated_sprite.sprite_frames.get_animation_names())
-	print("================================")
+func _setup_actions() -> void:
+	# Anything that isn't player 1 uses the p2_ actions
+	var prefix := "p1_" if player_id == 1 else "p2_"
+
+	act_up = prefix + "up"
+	act_down = prefix + "down"
+	act_left = prefix + "left"
+	act_right = prefix + "right"
+	act_attack1 = prefix + "attack1"
+	act_attack2 = prefix + "attack2"
+	act_attack3 = prefix + "attack3"
 
 
 # =========================================================
-# INPUT ACTIONS
+# HELPERS
 # =========================================================
 
-func get_up_action() -> String:
-
-	if player_id == 1:
-		return "p1_up"
-
-	return "p2_up"
-
-
-func get_down_action() -> String:
-
-	if player_id == 1:
-		return "p1_down"
-
-	return "p2_down"
+func _restart_animation(anim_name: String) -> void:
+	animated_sprite.stop()
+	animated_sprite.animation = anim_name
+	animated_sprite.frame = 0
+	animated_sprite.play()
 
 
-func get_left_action() -> String:
+func flash_red() -> void:
+	if flash_tween:
+		flash_tween.kill()
 
-	if player_id == 1:
-		return "p1_left"
+	animated_sprite.modulate = hit_flash_color
 
-	return "p2_left"
-
-
-func get_right_action() -> String:
-
-	if player_id == 1:
-		return "p1_right"
-
-	return "p2_right"
-
-
-func get_attack1_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack1"
-
-	return "p2_attack1"
-
-
-func get_attack2_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack2"
-
-	return "p2_attack2"
-
-
-func get_attack3_action() -> String:
-
-	if player_id == 1:
-		return "p1_attack3"
-
-	return "p2_attack3"
+	flash_tween = create_tween()
+	flash_tween.tween_property(animated_sprite, "modulate", base_modulate, hit_flash_time)
 
 
 # =========================================================
 # PHYSICS
 # =========================================================
 
-func _physics_process(_delta):
-
-	if dead:
-
+func _physics_process(_delta: float) -> void:
+	if dead or hurt:
 		velocity = Vector2.ZERO
-
 		return
-
-
-	if hurt:
-
-		velocity = Vector2.ZERO
-
-		return
-
 
 	if attacking:
-
 		velocity = Vector2.ZERO
-
 		move_and_slide()
-
 		return
 
-
-	if Input.is_action_just_pressed(
-		get_attack1_action()
-	):
-
+	if Input.is_action_just_pressed(act_attack1):
 		start_attack("attack1")
-
 		return
 
-
-	if Input.is_action_just_pressed(
-		get_attack2_action()
-	):
-
+	if Input.is_action_just_pressed(act_attack2):
 		start_attack("attack2")
-
 		return
 
-
-	if Input.is_action_just_pressed(
-		get_attack3_action()
-	):
-
+	if Input.is_action_just_pressed(act_attack3):
 		start_heal()
-
 		return
 
-
-	var direction = Input.get_vector(
-		get_left_action(),
-		get_right_action(),
-		get_up_action(),
-		get_down_action()
-	)
-
+	var direction := Input.get_vector(act_left, act_right, act_up, act_down)
 
 	velocity = direction * speed
 
+	if direction.x != 0:
+		animated_sprite.flip_h = direction.x < 0
 
-	if direction.x < 0:
-
-		animated_sprite.flip_h = true
-
-	elif direction.x > 0:
-
-		animated_sprite.flip_h = false
-
-
-	if direction == Vector2.ZERO:
-
-		animated_sprite.play("idle")
-
-	else:
-
-		animated_sprite.play("walk")
-
+	animated_sprite.play("walk" if direction != Vector2.ZERO else "idle")
 
 	move_and_slide()
 
 
 # =========================================================
-# ATTACK
+# ATTACK / HEAL
 # =========================================================
 
-func start_attack(animation_name: String):
-
+func start_attack(animation_name: String) -> void:
 	if attacking or hurt or dead:
-
 		return
 
-
 	attacking = true
-
 	current_attack = animation_name
-
 	velocity = Vector2.ZERO
 
+	print("PLAYER ", player_id, " HEALER ATTACK: ", animation_name)
 
-	print(
-		"PLAYER",
-		player_id,
-		"HEALER ATTACK:",
-		animation_name
-	)
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = animation_name
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	_restart_animation(animation_name)
 
 	await animated_sprite.animation_finished
 
-
 	if dead or hurt:
-
 		return
-
 
 	end_attack()
 
 
-# =========================================================
-# HEAL
-# =========================================================
-
-func start_heal():
-
+func start_heal() -> void:
 	if attacking or hurt or dead:
-
 		return
 
-
 	attacking = true
-
 	current_attack = "heal"
-
 	velocity = Vector2.ZERO
 
+	print("PLAYER ", player_id, " HEALER HEAL")
 
-	print(
-		"PLAYER",
-		player_id,
-		"HEALER HEAL"
-	)
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "heal"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	_restart_animation("heal")
 
 	await animated_sprite.animation_finished
 
-
 	if dead or hurt:
-
 		return
-
 
 	heal(heal_amount)
-
 	end_attack()
 
 
-func heal(amount: int):
+func heal(amount: int) -> void:
+	health = min(health + amount, max_health)
 
-	health += amount
-
-	health = min(
-		health,
-		max_health
-	)
+	print("PLAYER ", player_id, " HEALED: ", amount, " | HP: ", health, "/", max_health)
 
 
-	print(
-		"PLAYER",
-		player_id,
-		"HEALED:",
-		amount
-	)
+func end_attack() -> void:
+	attacking = false
+	current_attack = ""
+	velocity = Vector2.ZERO
 
-	print(
-		"HP:",
-		health,
-		"/",
-		max_health
-	)
+	if not dead and not hurt:
+		animated_sprite.play("idle")
 
 
-# =========================================================
-# ATTACK DAMAGE
-# =========================================================
-
-func get_attack_damage():
-
-	if current_attack == "attack1":
-
-		return attack1_damage
-
-
-	if current_attack == "attack2":
-
-		return attack2_damage
-
+func get_attack_damage() -> int:
+	match current_attack:
+		"attack1":
+			return attack1_damage
+		"attack2":
+			return attack2_damage
 
 	return 0
 
 
 # =========================================================
-# END ATTACK
+# DAMAGE / DEATH / RESPAWN
 # =========================================================
 
-func end_attack():
-
-	attacking = false
-
-	current_attack = ""
-
-	velocity = Vector2.ZERO
-
-
-	if not dead and not hurt:
-
-		animated_sprite.play("idle")
-
-
-# =========================================================
-# TAKE DAMAGE
-# =========================================================
-
-func take_damage(damage: int):
-
+func take_damage(damage: int) -> void:
 	if dead:
-
 		return
 
+	health = max(health - damage, 0)
 
-	health -= damage
+	print("PLAYER ", player_id, " HEALER TOOK DAMAGE: ", damage, " | HP: ", health, "/", max_health)
 
-	health = max(health, 0)
-
-
-	print(
-		"PLAYER",
-		player_id,
-		"HEALER TOOK DAMAGE:",
-		damage
-	)
-
-	print(
-		"HEALER HP:",
-		health,
-		"/",
-		max_health
-	)
-
+	# Red flash, even while an animation is playing
+	flash_red()
 
 	if health <= 0:
-
 		die()
-
 		return
 
-
 	hurt = true
-
 	attacking = false
-
 	current_attack = ""
-
 	velocity = Vector2.ZERO
 
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "hurt"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
+	_restart_animation("hurt")
 
 	print("HEALER HURT")
 
-
 	await animated_sprite.animation_finished
 
-
 	if dead:
-
 		return
 
-
 	hurt = false
-
 	animated_sprite.play("idle")
 
 
-# =========================================================
-# DEATH
-# =========================================================
-
-func die():
-
+func die() -> void:
 	if dead:
-
 		return
-
 
 	dead = true
-
 	hurt = false
-
 	attacking = false
-
 	current_attack = ""
-
 	velocity = Vector2.ZERO
 
+	collision_shape.set_deferred("disabled", true)
+	_restart_animation("death")
 
-	collision_shape.set_deferred(
-		"disabled",
-		true
-	)
-
-
-	animated_sprite.stop()
-
-	animated_sprite.animation = "death"
-
-	animated_sprite.frame = 0
-
-	animated_sprite.play()
-
-
-	print(
-		"PLAYER",
-		player_id,
-		"HEALER DIED"
-	)
-
+	print("PLAYER ", player_id, " HEALER DIED")
 
 	await animated_sprite.animation_finished
-
-
-	await get_tree().create_timer(
-		respawn_time
-	).timeout
-
+	await get_tree().create_timer(respawn_time).timeout
 
 	if not is_inside_tree():
-
 		return
-
 
 	respawn()
 
 
-# =========================================================
-# RESPAWN
-# =========================================================
-
-func respawn():
-
+func respawn() -> void:
 	health = max_health
-
 	dead = false
-
 	hurt = false
-
 	attacking = false
-
 	current_attack = ""
-
 	velocity = Vector2.ZERO
 
+	if flash_tween:
+		flash_tween.kill()
+	animated_sprite.modulate = base_modulate
 
-	collision_shape.set_deferred(
-		"disabled",
-		false
-	)
-
-
+	collision_shape.set_deferred("disabled", false)
 	animated_sprite.play("idle")
 
-
-	print("================================")
-	print("HEALER RESPAWNED")
-	print("PLAYER ID:", player_id)
-	print("HP:", health)
-	print("================================")
+	print("HEALER RESPAWNED | PLAYER ID: ", player_id, " | HP: ", health)
