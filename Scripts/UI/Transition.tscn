@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://d4bfbwqnmm3w8"]
+
+[sub_resource type="Animation" id="Animation_f8gnr"]
+resource_name = "fade"
+length = 1.1
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_cdj3o"]
+_data = {
+&"fade": SubResource("Animation_f8gnr")
+}
+
+[node name="Transition" type="CanvasLayer" unique_id=1881729795]
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=301085242]
+self_modulate = Color(0.10980392, 0.101960786, 0.09411765, 1)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.09019608, 0.09019608, 0.09019608, 0)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="ColorRect" unique_id=628728255]
+libraries/ = SubResource("AnimationLibrary_cdj3o")
