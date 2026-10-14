@@ -1,3 +1,4 @@
+
 extends CharacterBody2D
 
 # =========================================================
@@ -6,14 +7,12 @@ extends CharacterBody2D
 
 @export var speed: float = 180.0
 
-
 # =========================================================
 # HEALTH
 # =========================================================
 
 @export var max_health: int = 70
 @export var respawn_time: float = 3.0
-
 
 # =========================================================
 # ATTACKS
@@ -25,7 +24,6 @@ extends CharacterBody2D
 @export var attack1_cooldown: float = 0.0
 @export var attack2_cooldown: float = 3.0
 
-
 # =========================================================
 # FIREBALL
 # =========================================================
@@ -34,24 +32,16 @@ extends CharacterBody2D
 @export var fireball_release_frame: int = 4
 @export var fireball_spawn_offset: float = 35.0
 
-
 # =========================================================
 # ICE
 # =========================================================
 
 @export var ice_scene: PackedScene
-
-# Lower number = faster cast
 @export var ice_release_frame: int = 1
-
 @export var ice_spawn_offset: float = 40.0
-
 @export var ice_target_range: float = 400.0
-
 @export var ice_front_only: bool = true
-
 @export var ice_target_offset: Vector2 = Vector2.ZERO
-
 
 # =========================================================
 # HIT FLASH
@@ -59,7 +49,6 @@ extends CharacterBody2D
 
 @export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
 @export var hit_flash_time: float = 0.25
-
 
 # =========================================================
 # STATE
@@ -73,9 +62,7 @@ var hurt: bool = false
 var attacking: bool = false
 
 var current_attack: String = ""
-
 var projectile_fired: bool = false
-
 var attack_id: int = 0
 
 var attack_cooldowns: Dictionary = {
@@ -85,7 +72,6 @@ var attack_cooldowns: Dictionary = {
 
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
-
 
 # =========================================================
 # INPUT
@@ -99,14 +85,12 @@ var act_right: String
 var act_attack1: String
 var act_attack2: String
 
-
 # =========================================================
 # NODES
 # =========================================================
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
-
 
 # =========================================================
 # READY
@@ -115,24 +99,16 @@ var act_attack2: String
 func _ready() -> void:
 	add_to_group("players")
 
-	match get_parent().name:
-		"Player1":
-			player_id = 1
+	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
-		"Player2":
-			player_id = 2
-
-		_:
-			print("WARNING: Mage is not under Player1 or Player2")
-
+	player_id = _detect_player_id()
 	_setup_actions()
+	_check_input_actions()
 
 	health = max_health
-
 	base_modulate = animated_sprite.modulate
 
 	collision_shape.set_deferred("disabled", false)
-
 	animated_sprite.play("idle")
 
 	_log("READY | HP: %d | SPEED: %s" % [health, speed])
@@ -159,12 +135,33 @@ func _ready() -> void:
 		_log("WARNING: Ice Scene is NOT assigned")
 
 
+func _detect_player_id() -> int:
+	var current_node: Node = self
+
+	while current_node != null:
+		var node_name: String = String(current_node.name)
+
+		if node_name.begins_with("Player") and node_name.length() > 6:
+			var id_text: String = node_name.substr(6)
+
+			if id_text.is_valid_int():
+				var detected_id: int = id_text.to_int()
+
+				if detected_id >= 1 and detected_id <= 4:
+					return detected_id
+
+		current_node = current_node.get_parent()
+
+	push_warning("Mage '%s' could not find a Player1-Player4 ancestor. Using Player1 controls." % name)
+	return 1
+
+
 # =========================================================
 # INPUT SETUP
 # =========================================================
 
 func _setup_actions() -> void:
-	var prefix := "p1_" if player_id == 1 else "p2_"
+	var prefix: String = "p%d_" % player_id
 
 	act_up = prefix + "up"
 	act_down = prefix + "down"
@@ -173,6 +170,17 @@ func _setup_actions() -> void:
 
 	act_attack1 = prefix + "attack1"
 	act_attack2 = prefix + "attack2"
+
+
+func _check_input_actions() -> void:
+	var actions: Array = [
+		act_up, act_down, act_left, act_right,
+		act_attack1, act_attack2
+	]
+
+	for action_name in actions:
+		if not InputMap.has_action(action_name):
+			push_warning("Mage Player%d is missing Input Map action '%s'." % [player_id, action_name])
 
 
 # =========================================================
@@ -282,7 +290,7 @@ func _physics_process(delta: float) -> void:
 		if try_attack("attack2"):
 			return
 
-	var direction := Input.get_vector(
+	var direction: Vector2 = Input.get_vector(
 		act_left,
 		act_right,
 		act_up,
@@ -294,7 +302,7 @@ func _physics_process(delta: float) -> void:
 	if direction.x != 0:
 		animated_sprite.flip_h = direction.x < 0
 
-	var wanted_anim := "walk" if direction != Vector2.ZERO else "idle"
+	var wanted_anim: String = "walk" if direction != Vector2.ZERO else "idle"
 
 	if animated_sprite.animation != wanted_anim:
 		animated_sprite.play(wanted_anim)
@@ -310,11 +318,10 @@ func start_attack(attack_name: String) -> void:
 	if attacking or hurt or dead:
 		return
 
-	var is_fireball := attack_name == "attack1"
+	var is_fireball: bool = attack_name == "attack1"
 
 	attack_id += 1
-
-	var my_id := attack_id
+	var my_id: int = attack_id
 
 	attacking = true
 	current_attack = attack_name
@@ -344,7 +351,7 @@ func start_attack(attack_name: String) -> void:
 	else:
 		release_frame = ice_release_frame
 
-	var release_ok := await wait_for_attack_frame(
+	var release_ok: bool = await wait_for_attack_frame(
 		release_frame,
 		my_id
 	)
@@ -373,8 +380,7 @@ func wait_for_attack_frame(
 	target_frame: int,
 	id: int
 ) -> bool:
-
-	var last_frame := (
+	var last_frame: int = (
 		animated_sprite.sprite_frames
 		.get_frame_count(animated_sprite.animation) - 1
 	)
@@ -419,8 +425,7 @@ func fire_fireball() -> void:
 		_log("ERROR: FIREBALL SCENE IS NOT ASSIGNED")
 		return
 
-	var facing := _facing()
-
+	var facing: float = _facing()
 	var fireball = fireball_scene.instantiate()
 
 	_spawn_container().add_child(fireball)
@@ -456,13 +461,12 @@ func fire_fireball() -> void:
 # =========================================================
 
 func find_ice_target() -> Node2D:
-	var facing := _facing()
+	var facing: float = _facing()
 
 	var nearest: Node2D = null
 	var nearest_distance: float = ice_target_range
 
 	for enemy in get_tree().get_nodes_in_group("enemies"):
-
 		if not is_instance_valid(enemy):
 			continue
 
@@ -472,14 +476,13 @@ func find_ice_target() -> Node2D:
 		if "dead" in enemy and enemy.dead:
 			continue
 
-		var enemy_node := enemy as Node2D
+		var enemy_node: Node2D = enemy as Node2D
 
 		var offset: Vector2 = (
 			enemy_node.global_position -
 			global_position
 		)
 
-		# Only enemies in front
 		if ice_front_only:
 			if offset.x * facing < 0.0:
 				continue
@@ -507,9 +510,8 @@ func fire_ice() -> void:
 		_log("ERROR: ICE SCENE IS NOT ASSIGNED")
 		return
 
-	var facing := _facing()
-
-	var target := find_ice_target()
+	var facing: float = _facing()
+	var target: Node2D = find_ice_target()
 
 	var spawn_position: Vector2
 
@@ -523,7 +525,6 @@ func fire_ice() -> void:
 				global_position.distance_to(target.global_position)
 			]
 		)
-
 	else:
 		spawn_position = global_position + Vector2(
 			facing * ice_spawn_offset,
@@ -538,7 +539,6 @@ func fire_ice() -> void:
 
 	ice.global_position = spawn_position
 
-	# Give Ice the target directly.
 	if ice.has_method("setup"):
 		ice.setup(
 			Vector2(facing, 0),
@@ -583,9 +583,7 @@ func take_damage(damage: int) -> void:
 		return
 
 	hurt = true
-
 	_cancel_attack()
-
 	velocity = Vector2.ZERO
 
 	_restart_animation("hurt")
@@ -596,7 +594,6 @@ func take_damage(damage: int) -> void:
 		return
 
 	hurt = false
-
 	animated_sprite.play("idle")
 
 
@@ -612,11 +609,9 @@ func die() -> void:
 	hurt = false
 
 	_cancel_attack()
-
 	velocity = Vector2.ZERO
 
 	collision_shape.set_deferred("disabled", true)
-
 	_restart_animation("death")
 
 	_log("DIED")
@@ -642,7 +637,6 @@ func respawn() -> void:
 	hurt = false
 
 	_cancel_attack()
-
 	velocity = Vector2.ZERO
 
 	for attack_name in attack_cooldowns:
@@ -652,7 +646,6 @@ func respawn() -> void:
 		flash_tween.kill()
 
 	animated_sprite.modulate = base_modulate
-
 	collision_shape.set_deferred("disabled", false)
 
 	animated_sprite.play("idle")

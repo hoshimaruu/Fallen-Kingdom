@@ -1,0 +1,48 @@
+[gd_scene load_steps=8 format=3 uid="uid://jo6gfk7unppn"]
+
+[ext_resource type="Script" uid="uid://ccvb42b5r7vxn" path="res://Scripts/VFX/heal.gd" id="1_aaica"]
+[ext_resource type="Texture2D" uid="uid://b33t2y1yt10sy" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Magic(Projectile)/Priest_Heal_effect.png" id="2_wffbt"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5greg"]
+atlas = ExtResource("2_wffbt")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d1ddo"]
+atlas = ExtResource("2_wffbt")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_i3m7x"]
+atlas = ExtResource("2_wffbt")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_cf1hv"]
+atlas = ExtResource("2_wffbt")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_t7x7j"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5greg")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d1ddo")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_i3m7x")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_cf1hv")
+}],
+"loop": false,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="Heal" type="Node2D"]
+script = ExtResource("1_aaica")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_t7x7j")
+frame = 3
+frame_progress = 1.0

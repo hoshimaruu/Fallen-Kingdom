@@ -1,0 +1,64 @@
+[gd_scene load_steps=10 format=3 uid="uid://d15ph75djc2va"]
+
+[ext_resource type="Script" uid="uid://crq5opp0t4byr" path="res://Scripts/VFX/healer_ao_e.gd" id="1_ce7l4"]
+[ext_resource type="Texture2D" uid="uid://bbhkw11cmm05m" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Magic(Projectile)/Priest_Attack_effect.png" id="2_naq82"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2ubop"]
+atlas = ExtResource("2_naq82")
+region = Rect2(0, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_jo5mi"]
+atlas = ExtResource("2_naq82")
+region = Rect2(100, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_eg832"]
+atlas = ExtResource("2_naq82")
+region = Rect2(200, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4m1bf"]
+atlas = ExtResource("2_naq82")
+region = Rect2(300, 0, 100, 100)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_ceyra"]
+atlas = ExtResource("2_naq82")
+region = Rect2(400, 0, 100, 100)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_n44af"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2ubop")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_jo5mi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_eg832")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4m1bf")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_ceyra")
+}],
+"loop": false,
+"name": &"default",
+"speed": 6.0
+}]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ce7l4"]
+size = Vector2(21, 11.25)
+
+[node name="HealerAoE" type="Area2D"]
+collision_layer = 4
+collision_mask = 2
+script = ExtResource("1_ce7l4")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+sprite_frames = SubResource("SpriteFrames_n44af")
+frame = 2
+frame_progress = 0.16609307
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(2.5, 5.625)
+shape = SubResource("RectangleShape2D_ce7l4")

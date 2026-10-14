@@ -1,3 +1,4 @@
+
 extends CharacterBody2D
 
 # --- Movement ---
@@ -17,7 +18,7 @@ extends CharacterBody2D
 
 # --- Block ---
 @export var block_duration: float = 1.5
-@export var block_damage_reduction: float = 0.8  # 0.8 = take 20%, 1.0 = take none
+@export var block_damage_reduction: float = 0.8
 
 # --- Attack area ---
 @export var attack_area_distance: float = 35.0
@@ -39,7 +40,7 @@ var hit_targets: Array = []
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
 
-# --- Input action names (filled in by _setup_actions) ---
+# --- Input action names ---
 var act_up: String
 var act_down: String
 var act_left: String
@@ -61,16 +62,11 @@ var act_attack3: String
 
 func _ready() -> void:
 	add_to_group("players")
+	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
-	match get_parent().name:
-		"Player1":
-			player_id = 1
-		"Player2":
-			player_id = 2
-		_:
-			print("WARNING: Knight is not under Player1 or Player2")
-
+	player_id = _detect_player_id()
 	_setup_actions()
+	_check_input_actions()
 
 	health = max_health
 	dead = false
@@ -90,9 +86,29 @@ func _ready() -> void:
 	print("ANIMATIONS: ", animated_sprite.sprite_frames.get_animation_names())
 
 
+func _detect_player_id() -> int:
+	var current_node: Node = self
+
+	while current_node != null:
+		var node_name: String = String(current_node.name)
+
+		if node_name.begins_with("Player") and node_name.length() > 6:
+			var id_text: String = node_name.substr(6)
+
+			if id_text.is_valid_int():
+				var detected_id: int = id_text.to_int()
+
+				if detected_id >= 1 and detected_id <= 4:
+					return detected_id
+
+		current_node = current_node.get_parent()
+
+	push_warning("Knight '%s' could not find a Player1-Player4 ancestor. Using Player1 controls." % name)
+	return 1
+
+
 func _setup_actions() -> void:
-	# Anything that isn't player 1 uses the p2_ actions
-	var prefix := "p1_" if player_id == 1 else "p2_"
+	var prefix: String = "p%d_" % player_id
 
 	act_up = prefix + "up"
 	act_down = prefix + "down"
@@ -101,6 +117,17 @@ func _setup_actions() -> void:
 	act_attack1 = prefix + "attack1"
 	act_attack2 = prefix + "attack2"
 	act_attack3 = prefix + "attack3"
+
+
+func _check_input_actions() -> void:
+	var actions: Array = [
+		act_up, act_down, act_left, act_right,
+		act_attack1, act_attack2, act_attack3
+	]
+
+	for action_name in actions:
+		if not InputMap.has_action(action_name):
+			push_warning("Knight Player%d is missing Input Map action '%s'." % [player_id, action_name])
 
 
 # =========================================================
@@ -152,7 +179,7 @@ func _physics_process(_delta: float) -> void:
 		move_and_slide()
 		return
 
-	var direction := Input.get_vector(act_left, act_right, act_up, act_down)
+	var direction: Vector2 = Input.get_vector(act_left, act_right, act_up, act_down)
 
 	velocity = direction * speed
 	move_and_slide()
@@ -161,7 +188,7 @@ func _physics_process(_delta: float) -> void:
 		animated_sprite.flip_h = direction.x < 0
 		update_attack_area_direction()
 
-	var wanted_anim := "walk" if direction != Vector2.ZERO else "idle"
+	var wanted_anim: String = "walk" if direction != Vector2.ZERO else "idle"
 	if animated_sprite.animation != wanted_anim:
 		animated_sprite.play(wanted_anim)
 
@@ -248,7 +275,7 @@ func fire_slash() -> void:
 	var slash = slash_scene.instantiate()
 	get_parent().get_parent().add_child(slash)
 
-	var facing_direction := -1.0 if animated_sprite.flip_h else 1.0
+	var facing_direction: float = -1.0 if animated_sprite.flip_h else 1.0
 
 	slash.global_position = global_position + Vector2(facing_direction * 35.0, 0)
 	slash.direction = Vector2(facing_direction, 0)
@@ -279,7 +306,6 @@ func start_block() -> void:
 	if dead or hurt:
 		return
 
-	# Hold the last frame of the block animation
 	animated_sprite.stop()
 	animated_sprite.frame = animated_sprite.sprite_frames.get_frame_count("attack3") - 1
 
@@ -302,7 +328,7 @@ func take_damage(damage: int) -> void:
 	if dead:
 		return
 
-	var was_blocking := blocking
+	var was_blocking: bool = blocking
 
 	if was_blocking:
 		damage = int(damage * (1.0 - block_damage_reduction))
@@ -311,7 +337,6 @@ func take_damage(damage: int) -> void:
 	health = max(health - damage, 0)
 	print("KNIGHT HP: ", health, "/", max_health)
 
-	# Red flash, even while attacking or blocking (skipped if fully blocked)
 	if damage > 0:
 		flash_red()
 
@@ -319,7 +344,6 @@ func take_damage(damage: int) -> void:
 		die()
 		return
 
-	# Blocked hits don't interrupt the shield
 	if was_blocking:
 		return
 
@@ -366,6 +390,7 @@ func respawn() -> void:
 
 	if flash_tween:
 		flash_tween.kill()
+
 	animated_sprite.modulate = base_modulate
 
 	collision_shape.set_deferred("disabled", false)
