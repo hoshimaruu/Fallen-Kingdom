@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://d4bfbwqnmm3w8"]
+[gd_scene load_steps=0 format=3 uid="uid://d4bfbwqnmm3w8"]
 
 [sub_resource type="Animation" id="Animation_f8gnr"]
 resource_name = "fade"

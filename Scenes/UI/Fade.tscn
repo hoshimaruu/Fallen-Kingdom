@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://c84iq01xwsqmw"]
+[gd_scene load_steps=0 format=3 uid="uid://c84iq01xwsqmw"]
 
 [ext_resource type="Script" uid="uid://buut5l4yt0sbp" path="res://Scenes/UI/fade.gd" id="1_trmao"]
 
