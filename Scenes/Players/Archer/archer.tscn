@@ -1,4 +1,4 @@
-[gd_scene load_steps=55 format=3 uid="uid://cnf8sjx6swfkc"]
+[gd_scene load_steps=55 format=3 uid="uid://c8xh8ccq5nddj"]
 
 [ext_resource type="Texture2D" uid="uid://cjbffipuml1vp" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Archer/Archer with shadows/Archer_Attack01.png" id="1_7gayo"]
 [ext_resource type="Script" uid="uid://bvjut5la0g0x7" path="res://Scripts/Players/archer.gd" id="1_g0dm0"]
