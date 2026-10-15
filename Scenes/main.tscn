@@ -1,23 +1,25 @@
-[gd_scene load_steps=4 format=3 uid="uid://dkhqfjus7e58w"]
+[gd_scene format=3 uid="uid://dkhqfjus7e58w"]
 
 [ext_resource type="PackedScene" uid="uid://bkpsu021qa7ys" path="res://Scenes/Players/Healer/healer.tscn" id="1_8gbba"]
-[ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/Knight/knight.tscn" id="2_8gbba"]
+[ext_resource type="PackedScene" uid="uid://b2m3k3f73sfa8" path="res://Scenes/Players/Mage/mage.tscn" id="2_8gbba"]
 [ext_resource type="PackedScene" uid="uid://bdy40qav1uh8h" path="res://Scenes/Enemies/orc.tscn" id="3_8gbba"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=956380312]
 position = Vector2(512, 335)
 
-[node name="Player1" type="Node2D" parent="."]
+[node name="Player1" type="Node2D" parent="." unique_id=1598986193]
 
-[node name="healer" parent="Player1" instance=ExtResource("1_8gbba")]
+[node name="healer" parent="Player1" unique_id=2078450527 instance=ExtResource("1_8gbba")]
 
-[node name="Player2" type="Node2D" parent="."]
+[node name="Player2" type="Node2D" parent="." unique_id=505823182]
 
-[node name="Knight" parent="Player2" instance=ExtResource("2_8gbba")]
+[node name="Mage" parent="Player2" unique_id=1924222060 instance=ExtResource("2_8gbba")]
+position = Vector2(-208, 12)
 
-[node name="enemies" type="Node2D" parent="."]
+[node name="enemies" type="Node2D" parent="." unique_id=795756091]
+position = Vector2(0, 2)
 
-[node name="orc" parent="enemies" instance=ExtResource("3_8gbba")]
+[node name="orc" parent="enemies" unique_id=1677788236 instance=ExtResource("3_8gbba")]
 position = Vector2(-73, -126)
 
-[node name="UI" type="CanvasLayer" parent="."]
+[node name="UI" type="CanvasLayer" parent="." unique_id=951988641]

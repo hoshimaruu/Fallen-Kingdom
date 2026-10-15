@@ -1,4 +1,4 @@
-[gd_scene load_steps=44 format=3 uid="uid://bdy40qav1uh8h"]
+[gd_scene format=3 uid="uid://bdy40qav1uh8h"]
 
 [ext_resource type="Script" uid="uid://ddpj038cuc60e" path="res://Scripts/Enemies/orc.gd" id="1_ny6sd"]
 [ext_resource type="Texture2D" uid="uid://bplartm57o4cm" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Orc/Orc with shadows/Orc_Attack01.png" id="1_tq37w"]
@@ -165,7 +165,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_2i0ii")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack1",
 "speed": 5.0
 }, {
@@ -188,7 +188,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ovk68")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack2",
 "speed": 5.0
 }, {
@@ -205,7 +205,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_fi1oq")
 }],
-"loop": false,
+"loop": 0,
 "name": &"death",
 "speed": 5.0
 }, {
@@ -222,7 +222,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_ej31k")
 }],
-"loop": false,
+"loop": 0,
 "name": &"hurt",
 "speed": 5.0
 }, {
@@ -245,7 +245,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_4dr56")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 5.0
 }, {
@@ -274,7 +274,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_v7stb")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 5.0
 }]
@@ -282,16 +282,16 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_ny6sd"]
 radius = 13.038404
 
-[node name="orc" type="CharacterBody2D"]
+[node name="orc" type="CharacterBody2D" unique_id=2026366688]
 collision_layer = 2
 collision_mask = 21
 script = ExtResource("1_ny6sd")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1978246744]
 position = Vector2(0, -2)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_nc1fs")
 animation = &"attack2"
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1568117936]
 shape = SubResource("CircleShape2D_ny6sd")

@@ -1,3 +1,4 @@
+
 extends CharacterBody2D
 
 # --- Health ---
@@ -8,9 +9,9 @@ extends CharacterBody2D
 @export var move_speed: float = 80.0
 
 # --- Attack ---
-@export var attack_damage: int = 10           # attack1 (normal)
-@export var attack2_damage: int = 20          # attack2 (heavy)
-@export var heavy_attack_every: int = 3       # 3 = every third attack
+@export var attack_damage: int = 10
+@export var attack2_damage: int = 20
+@export var heavy_attack_every: int = 3
 @export var attack1_hit_frame: int = 4
 @export var attack2_hit_frame: int = 4
 @export var attack_range: float = 70.0
@@ -35,9 +36,9 @@ var can_attack: bool = true
 var attacking: bool = false
 var damage_dealt: bool = false
 var attack_count: int = 0
-var attack_target = null     # player locked onto when the attack started
+var attack_target: Node2D = null
 
-# Change whenever an attack / hurt is interrupted, so old coroutines stop safely
+# Change whenever an attack / hurt is interrupted
 var attack_id: int = 0
 var hurt_id: int = 0
 
@@ -56,7 +57,6 @@ var flash_tween: Tween
 func _ready() -> void:
 	add_to_group("enemies")
 
-	# Top-down game: Floating stops bodies being carried along like moving platforms
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
 	health = max_health
@@ -64,10 +64,11 @@ func _ready() -> void:
 
 	collision_shape.set_deferred("disabled", false)
 
-	# These must play once and finish, otherwise the orc can get stuck waiting for them
 	for anim_name in ["attack1", "attack2", "hurt", "death"]:
 		if animated_sprite.sprite_frames.has_animation(anim_name):
-			animated_sprite.sprite_frames.set_animation_loop(anim_name, false)
+			animated_sprite.sprite_frames.set_animation_loop(
+				anim_name, false
+			)
 
 	animated_sprite.visible = true
 	animated_sprite.play("idle")
@@ -77,15 +78,13 @@ func _ready() -> void:
 
 
 # =========================================================
-# COLOUR (freeze tint + hit flash)
+# COLOUR
 # =========================================================
 
-# The colour the orc goes back to after a hit flash
 func _rest_color() -> Color:
 	return freeze_tint if frozen else base_modulate
 
 
-# Used when freezing / unfreezing (a running flash blends to the right colour by itself)
 func _refresh_color() -> void:
 	if flash_tween and flash_tween.is_running():
 		return
@@ -100,11 +99,18 @@ func flash_red() -> void:
 	animated_sprite.modulate = hit_flash_color
 
 	flash_tween = create_tween()
-	flash_tween.tween_method(_set_flash_blend, 0.0, 1.0, hit_flash_time)
+	flash_tween.tween_method(
+		_set_flash_blend,
+		0.0,
+		1.0,
+		hit_flash_time
+	)
 
 
 func _set_flash_blend(amount: float) -> void:
-	animated_sprite.modulate = hit_flash_color.lerp(_rest_color(), amount)
+	animated_sprite.modulate = hit_flash_color.lerp(
+		_rest_color(), amount
+	)
 
 
 func _reset_color() -> void:
@@ -115,7 +121,7 @@ func _reset_color() -> void:
 
 
 # =========================================================
-# PHYSICS (CHASE + ATTACK)
+# PHYSICS: CHASE + ATTACK
 # =========================================================
 
 func _physics_process(delta: float) -> void:
@@ -123,30 +129,32 @@ func _physics_process(delta: float) -> void:
 
 	velocity = Vector2.ZERO
 
-	# Busy: stay still (frozen keeps its frozen pose)
 	if dead or frozen or attacking or hurt:
 		return
 
-	var target = find_nearest_player()
+	var target: Node2D = find_nearest_player()
 
-	# No living players
 	if target == null:
 		play_if_not("idle")
 		return
 
-	var distance := global_position.distance_to(target.global_position)
+	var distance: float = global_position.distance_to(
+		target.global_position
+	)
 
-	# Always face the nearest player
-	animated_sprite.flip_h = target.global_position.x < global_position.x
+	# Face the current target.
+	animated_sprite.flip_h = (
+		target.global_position.x < global_position.x
+	)
 
 	if distance > attack_range:
-		# Too far: chase
-		velocity = global_position.direction_to(target.global_position) * move_speed
-		move_and_slide()
+		velocity = global_position.direction_to(
+			target.global_position
+		) * move_speed
 
+		move_and_slide()
 		play_if_not("walk")
 	else:
-		# Close enough: stop and attack
 		play_if_not("idle")
 
 		if can_attack:
@@ -154,31 +162,69 @@ func _physics_process(delta: float) -> void:
 
 
 func play_if_not(anim_name: String) -> void:
-	if animated_sprite.animation != anim_name or not animated_sprite.is_playing():
+	if (
+		animated_sprite.animation != anim_name
+		or not animated_sprite.is_playing()
+	):
 		animated_sprite.play(anim_name)
 
 
-func find_nearest_player():
-	var nearest_player = null
-	var nearest_distance := INF
+# =========================================================
+# TARGETING: PLAYERS + SUMMONS
+# =========================================================
 
-	for player in get_tree().get_nodes_in_group("players"):
-		if not is_instance_valid(player):
+func find_nearest_player() -> Node2D:
+	var nearest_target: Node2D = null
+	var nearest_distance: float = INF
+
+	var candidates: Array = []
+	candidates.append_array(
+		get_tree().get_nodes_in_group("players")
+	)
+	candidates.append_array(
+		get_tree().get_nodes_in_group("summons")
+	)
+
+	for candidate in candidates:
+		if not is_instance_valid(candidate):
 			continue
 
-		if not player.has_method("take_damage"):
+		if not candidate is Node2D:
 			continue
 
-		if player.dead:
+		if candidate.is_queued_for_deletion():
 			continue
 
-		var distance := global_position.distance_to(player.global_position)
+		if not candidate.has_method("take_damage"):
+			continue
+
+		# Player death state.
+		var is_dead = candidate.get("dead")
+
+		if is_dead != null and is_dead:
+			continue
+
+		# Paladin dismissal/death state.
+		var is_disappearing = candidate.get("disappearing")
+
+		if is_disappearing != null and is_disappearing:
+			continue
+
+		# Ignore targets with no health remaining.
+		var target_health = candidate.get("health")
+
+		if target_health != null and target_health <= 0:
+			continue
+
+		var distance: float = global_position.distance_to(
+			candidate.global_position
+		)
 
 		if distance < nearest_distance:
 			nearest_distance = distance
-			nearest_player = player
+			nearest_target = candidate
 
-	return nearest_player
+	return nearest_target
 
 
 # =========================================================
@@ -199,7 +245,6 @@ func apply_freeze(duration: float) -> void:
 	if dead or duration <= 0.0:
 		return
 
-	# Already frozen: just refresh the time
 	freeze_time_left = maxf(freeze_time_left, duration)
 
 	if frozen:
@@ -207,7 +252,6 @@ func apply_freeze(duration: float) -> void:
 
 	frozen = true
 
-	# Interrupt whatever the orc was doing (this also cancels a pending hurt / attack)
 	attack_id += 1
 	hurt_id += 1
 
@@ -218,7 +262,6 @@ func apply_freeze(duration: float) -> void:
 	attack_target = null
 	velocity = Vector2.ZERO
 
-	# Hold a still "idle" pose while frozen
 	animated_sprite.stop()
 	animated_sprite.animation = "idle"
 	animated_sprite.frame = 0
@@ -235,7 +278,6 @@ func unfreeze() -> void:
 	frozen = false
 	freeze_time_left = 0.0
 
-	# Make sure nothing is left over from before the freeze
 	hurt = false
 	attacking = false
 	can_attack = true
@@ -250,7 +292,7 @@ func unfreeze() -> void:
 
 
 # =========================================================
-# STAGGER (interrupts the orc and plays the hurt animation)
+# STAGGER
 # =========================================================
 
 func stagger() -> void:
@@ -258,8 +300,6 @@ func stagger() -> void:
 		return
 
 	if attacking:
-		# Cancel the swing so its damage frame never lands.
-		# can_attack is released here: `hurt` keeps the orc from attacking until the animation ends.
 		attack_id += 1
 		attacking = false
 		can_attack = true
@@ -268,7 +308,8 @@ func stagger() -> void:
 
 	hurt = true
 	hurt_id += 1
-	var my_hurt := hurt_id
+
+	var my_hurt: int = hurt_id
 
 	velocity = Vector2.ZERO
 
@@ -281,7 +322,6 @@ func stagger() -> void:
 
 	await animated_sprite.animation_finished
 
-	# Skipped if the stagger was interrupted (frozen, died, staggered again...)
 	if dead or my_hurt != hurt_id:
 		return
 
@@ -293,14 +333,16 @@ func stagger() -> void:
 # ATTACK
 # =========================================================
 
-func start_attack(target) -> void:
-	if dead or frozen or attacking or not can_attack or target == null:
+func start_attack(target: Node2D) -> void:
+	if dead or frozen or attacking or not can_attack:
+		return
+
+	if not is_instance_valid(target):
 		return
 
 	attack_id += 1
-	var my_id := attack_id
+	var my_id: int = attack_id
 
-	# Lock onto this player for the whole attack
 	attack_target = target
 
 	attacking = true
@@ -308,22 +350,31 @@ func start_attack(target) -> void:
 	damage_dealt = false
 	velocity = Vector2.ZERO
 
-	# Every Nth attack is the heavy one
 	attack_count += 1
 
-	var heavy := attack_count % heavy_attack_every == 0
-	var anim_name := "attack2" if heavy else "attack1"
-	var damage := attack2_damage if heavy else attack_damage
-	var hit_frame := attack2_hit_frame if heavy else attack1_hit_frame
+	var heavy: bool = (
+		attack_count % maxi(heavy_attack_every, 1) == 0
+	)
 
-	animated_sprite.flip_h = target.global_position.x < global_position.x
+	var anim_name: String = "attack2" if heavy else "attack1"
+	var damage: int = attack2_damage if heavy else attack_damage
+	var hit_frame: int = (
+		attack2_hit_frame if heavy else attack1_hit_frame
+	)
+
+	animated_sprite.flip_h = (
+		target.global_position.x < global_position.x
+	)
 
 	animated_sprite.stop()
 	animated_sprite.animation = anim_name
 	animated_sprite.frame = 0
 	animated_sprite.play()
 
-	print("ORC %s | ATTACK #%d | TARGET: %s | DAMAGE: %d" % [anim_name.to_upper(), attack_count, target.name, damage])
+	print(
+		"ORC %s | ATTACK #%d | TARGET: %s | DAMAGE: %d"
+		% [anim_name.to_upper(), attack_count, target.name, damage]
+	)
 
 	await wait_for_attack_frame(hit_frame, my_id)
 
@@ -344,7 +395,6 @@ func start_attack(target) -> void:
 
 	animated_sprite.play("idle")
 
-	# Cooldown before the next attack
 	await get_tree().create_timer(attack_cooldown).timeout
 
 	if dead or my_id != attack_id:
@@ -354,9 +404,13 @@ func start_attack(target) -> void:
 
 
 func wait_for_attack_frame(target_frame: int, id: int) -> void:
-	# Never wait for a frame the animation doesn't have
-	var last_frame := animated_sprite.sprite_frames.get_frame_count(animated_sprite.animation) - 1
-	target_frame = mini(target_frame, last_frame)
+	var last_frame: int = (
+		animated_sprite.sprite_frames.get_frame_count(
+			animated_sprite.animation
+		) - 1
+	)
+
+	target_frame = clampi(target_frame, 0, maxi(last_frame, 0))
 
 	while animated_sprite.frame < target_frame:
 		await get_tree().process_frame
@@ -371,21 +425,41 @@ func deal_attack_damage(damage: int) -> void:
 
 	damage_dealt = true
 
-	var target = attack_target
+	var target: Node2D = attack_target
 
-	if target == null or not is_instance_valid(target):
+	if not is_instance_valid(target):
 		return
 
-	if target.dead:
+	if target.is_queued_for_deletion():
 		return
 
-	if global_position.distance_to(target.global_position) > attack_range:
+	var is_dead = target.get("dead")
+	var is_disappearing = target.get("disappearing")
+
+	if is_dead != null and is_dead:
+		return
+
+	if is_disappearing != null and is_disappearing:
+		return
+
+	var target_health = target.get("health")
+
+	if target_health != null and target_health <= 0:
+		return
+
+	if global_position.distance_to(
+		target.global_position
+	) > attack_range:
 		print("ORC ATTACK MISSED: OUT OF RANGE")
 		return
 
 	if target.has_method("take_damage"):
-		print("ORC HIT: %s | DAMAGE: %d" % [target.name, damage])
-		target.take_damage(damage)
+		print(
+			"ORC HIT: %s | DAMAGE: %d"
+			% [target.name, damage]
+		)
+
+		target.call("take_damage", damage)
 
 
 # =========================================================
@@ -393,28 +467,30 @@ func deal_attack_damage(damage: int) -> void:
 # =========================================================
 
 func take_damage(damage: int) -> void:
-	if dead:
+	if dead or damage <= 0:
 		return
 
-	health = max(health - damage, 0)
+	health = maxi(health - damage, 0)
 
-	print("ORC TOOK DAMAGE: %d | HP: %d" % [damage, health])
+	print(
+		"ORC TOOK DAMAGE: %d | HP: %d"
+		% [damage, health]
+	)
 
 	if health <= 0:
 		die()
-		flash_red()   # after die(), so its colour reset doesn't cancel the flash
+		flash_red()
 		return
 
-	# Red flash, even while attacking or frozen
 	flash_red()
 
-	# Don't interrupt an attack or a freeze with the hurt animation
 	if attacking or frozen:
 		return
 
 	hurt = true
 	hurt_id += 1
-	var my_hurt := hurt_id
+
+	var my_hurt: int = hurt_id
 
 	animated_sprite.stop()
 	animated_sprite.animation = "hurt"
@@ -423,7 +499,6 @@ func take_damage(damage: int) -> void:
 
 	await animated_sprite.animation_finished
 
-	# Skipped if the hurt was interrupted (frozen, died, hit again...)
 	if dead or my_hurt != hurt_id:
 		return
 
@@ -466,14 +541,14 @@ func die() -> void:
 
 	await animated_sprite.animation_finished
 
-	if not is_instance_valid(self):
+	if not is_inside_tree():
 		return
 
 	animated_sprite.visible = false
 
 	await get_tree().create_timer(respawn_time).timeout
 
-	if not is_instance_valid(self):
+	if not is_inside_tree():
 		return
 
 	respawn()

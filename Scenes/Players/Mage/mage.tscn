@@ -1,9 +1,10 @@
-[gd_scene load_steps=55 format=3 uid="uid://b2m3k3f73sfa8"]
+[gd_scene format=3 uid="uid://b2m3k3f73sfa8"]
 
 [ext_resource type="Script" uid="uid://bpuykan5ojypg" path="res://Scripts/Players/mage.gd" id="1_j1n4o"]
 [ext_resource type="PackedScene" uid="uid://hq5ed8ot41xi" path="res://Scenes/Players/Mage/fireball.tscn" id="2_xol05"]
 [ext_resource type="PackedScene" uid="uid://c1ggjlettm1g" path="res://Scenes/Players/Mage/ice.tscn" id="3_j1n4o"]
 [ext_resource type="Texture2D" uid="uid://baoovlfmln6bb" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack01.png" id="3_lrcl3"]
+[ext_resource type="PackedScene" uid="uid://xa4wurn3bi4f" path="res://Scenes/Players/Mage/mage_summon.tscn" id="4_lrcl3"]
 [ext_resource type="Texture2D" uid="uid://dtktr5b7uoo4c" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Attack02.png" id="4_ylcdt"]
 [ext_resource type="Texture2D" uid="uid://bb0285y1vmgc8" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Death.png" id="5_36alv"]
 [ext_resource type="Texture2D" uid="uid://bqr3jferpxs2v" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Wizard/Wizard with shadows/Wizard_Hurt.png" id="6_xnw4f"]
@@ -212,7 +213,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_yusx3")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack1",
 "speed": 10.0
 }, {
@@ -235,7 +236,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_x4g27")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack2",
 "speed": 10.0
 }, {
@@ -258,7 +259,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_wj6yv")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack3",
 "speed": 10.0
 }, {
@@ -275,7 +276,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_o55s4")
 }],
-"loop": false,
+"loop": 0,
 "name": &"death",
 "speed": 5.0
 }, {
@@ -292,7 +293,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_07x7p")
 }],
-"loop": false,
+"loop": 0,
 "name": &"hurt",
 "speed": 5.0
 }, {
@@ -315,7 +316,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_hp4ji")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 9.0
 }, {
@@ -344,7 +345,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_7b34g")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 10.0
 }]
@@ -352,17 +353,20 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_hp4ji"]
 radius = 9.0
 
-[node name="Mage" type="CharacterBody2D"]
+[node name="Mage" type="CharacterBody2D" unique_id=1924222060]
 scale = Vector2(2, 2)
 script = ExtResource("1_j1n4o")
 fireball_scene = ExtResource("2_xol05")
 ice_scene = ExtResource("3_j1n4o")
+summon_scene = ExtResource("4_lrcl3")
+summon_lifetime = 15.0
+max_summons = 5
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1184992793]
 sprite_frames = SubResource("SpriteFrames_rpchr")
 animation = &"attack3"
 frame = 5
 frame_progress = 1.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=111677453]
 shape = SubResource("CircleShape2D_hp4ji")

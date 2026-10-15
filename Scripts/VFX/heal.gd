@@ -38,7 +38,7 @@ func _ready() -> void:
 	animated_sprite.animation_finished.connect(_on_animation_finished)
 	animated_sprite.play()
 
-	print("[HEAL EFFECT] STARTED ON ", target.name if is_instance_valid(target) else "(no target yet)")
+	print("[HEAL EFFECT] STARTED ON ", str(target.name) if is_instance_valid(target) else "(no target yet)")
 
 
 func _process(_delta: float) -> void:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://jo6gfk7unppn"]
+[gd_scene format=3 uid="uid://jo6gfk7unppn"]
 
 [ext_resource type="Script" uid="uid://ccvb42b5r7vxn" path="res://Scripts/VFX/heal.gd" id="1_aaica"]
 [ext_resource type="Texture2D" uid="uid://b33t2y1yt10sy" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Magic(Projectile)/Priest_Heal_effect.png" id="2_wffbt"]
@@ -34,15 +34,15 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_cf1hv")
 }],
-"loop": false,
+"loop": 0,
 "name": &"default",
 "speed": 5.0
 }]
 
-[node name="Heal" type="Node2D"]
+[node name="Heal" type="Node2D" unique_id=145264854]
 script = ExtResource("1_aaica")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=886824440]
 sprite_frames = SubResource("SpriteFrames_t7x7j")
 frame = 3
 frame_progress = 1.0

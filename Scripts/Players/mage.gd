@@ -20,9 +20,11 @@ extends CharacterBody2D
 
 @export var attack1_damage: int = 20
 @export var attack2_damage: int = 30
+@export var attack3_damage: int = 12
 
 @export var attack1_cooldown: float = 0.0
 @export var attack2_cooldown: float = 3.0
+@export var attack3_cooldown: float = 5.0
 
 # =========================================================
 # FIREBALL
@@ -42,6 +44,16 @@ extends CharacterBody2D
 @export var ice_target_range: float = 400.0
 @export var ice_front_only: bool = true
 @export var ice_target_offset: Vector2 = Vector2.ZERO
+
+# =========================================================
+# SUMMON (ATTACK 3 - BAT)
+# =========================================================
+
+@export var summon_scene: PackedScene
+@export var summon_release_frame: int = 3
+@export var summon_spawn_offset: float = 50.0
+@export var summon_lifetime: float = 12.0
+@export var max_summons: int = 1
 
 # =========================================================
 # HIT FLASH
@@ -64,10 +76,12 @@ var attacking: bool = false
 var current_attack: String = ""
 var projectile_fired: bool = false
 var attack_id: int = 0
+var active_summons: Array[Node] = []
 
 var attack_cooldowns: Dictionary = {
 	"attack1": 0.0,
-	"attack2": 0.0
+	"attack2": 0.0,
+	"attack3": 0.0
 }
 
 var base_modulate: Color = Color.WHITE
@@ -84,6 +98,7 @@ var act_right: String
 
 var act_attack1: String
 var act_attack2: String
+var act_attack3: String
 
 # =========================================================
 # NODES
@@ -111,6 +126,10 @@ func _ready() -> void:
 	collision_shape.set_deferred("disabled", false)
 	animated_sprite.play("idle")
 
+	for anim in ["attack1", "attack2", "attack3"]:
+		if animated_sprite.sprite_frames.has_animation(anim):
+			animated_sprite.sprite_frames.set_animation_loop(anim, false)
+
 	_log("READY | HP: %d | SPEED: %s" % [health, speed])
 
 	_log(
@@ -124,6 +143,11 @@ func _ready() -> void:
 	)
 
 	_log(
+		"BAT SUMMON COOLDOWN: %.1f seconds" %
+		attack3_cooldown
+	)
+
+	_log(
 		"ANIMATIONS: %s" %
 		[animated_sprite.sprite_frames.get_animation_names()]
 	)
@@ -133,6 +157,9 @@ func _ready() -> void:
 
 	if ice_scene == null:
 		_log("WARNING: Ice Scene is NOT assigned")
+
+	if summon_scene == null:
+		_log("WARNING: Summon Scene is NOT assigned")
 
 
 func _detect_player_id() -> int:
@@ -170,12 +197,13 @@ func _setup_actions() -> void:
 
 	act_attack1 = prefix + "attack1"
 	act_attack2 = prefix + "attack2"
+	act_attack3 = prefix + "attack3"
 
 
 func _check_input_actions() -> void:
 	var actions: Array = [
 		act_up, act_down, act_left, act_right,
-		act_attack1, act_attack2
+		act_attack1, act_attack2, act_attack3
 	]
 
 	for action_name in actions:
@@ -290,6 +318,10 @@ func _physics_process(delta: float) -> void:
 		if try_attack("attack2"):
 			return
 
+	if Input.is_action_just_pressed(act_attack3):
+		if try_attack("attack3"):
+			return
+
 	var direction: Vector2 = Input.get_vector(
 		act_left,
 		act_right,
@@ -318,8 +350,6 @@ func start_attack(attack_name: String) -> void:
 	if attacking or hurt or dead:
 		return
 
-	var is_fireball: bool = attack_name == "attack1"
-
 	attack_id += 1
 	var my_id: int = attack_id
 
@@ -329,15 +359,15 @@ func start_attack(attack_name: String) -> void:
 
 	velocity = Vector2.ZERO
 
-	if is_fireball:
-		attack_cooldowns["attack1"] = attack1_cooldown
-	else:
-		attack_cooldowns["attack2"] = attack2_cooldown
+	match attack_name:
+		"attack1": attack_cooldowns["attack1"] = attack1_cooldown
+		"attack2": attack_cooldowns["attack2"] = attack2_cooldown
+		"attack3": attack_cooldowns["attack3"] = attack3_cooldown
 
 	_log(
 		"%s | FACING: %s" %
 		[
-			"FIREBALL" if is_fireball else "ICE",
+			attack_name.to_upper(),
 			"LEFT" if animated_sprite.flip_h else "RIGHT"
 		]
 	)
@@ -346,10 +376,10 @@ func start_attack(attack_name: String) -> void:
 
 	var release_frame: int
 
-	if is_fireball:
-		release_frame = fireball_release_frame
-	else:
-		release_frame = ice_release_frame
+	match attack_name:
+		"attack1": release_frame = fireball_release_frame
+		"attack2": release_frame = ice_release_frame
+		_: release_frame = summon_release_frame
 
 	var release_ok: bool = await wait_for_attack_frame(
 		release_frame,
@@ -359,10 +389,10 @@ func start_attack(attack_name: String) -> void:
 	if not release_ok:
 		return
 
-	if is_fireball:
-		fire_fireball()
-	else:
-		fire_ice()
+	match attack_name:
+		"attack1": fire_fireball()
+		"attack2": fire_ice()
+		"attack3": summon_familiar()
 
 	await animated_sprite.animation_finished
 
@@ -558,6 +588,87 @@ func fire_ice() -> void:
 
 
 # =========================================================
+# SUMMON BAT / FAMILIAR
+# =========================================================
+
+func summon_familiar() -> void:
+	if projectile_fired:
+		return
+
+	projectile_fired = true
+
+	if summon_scene == null:
+		_log("ERROR: SUMMON SCENE IS NOT ASSIGNED")
+		return
+
+	_prune_summons()
+
+	# Dismiss the oldest summon if at the limit.
+	while active_summons.size() >= max_summons:
+		var oldest: Node = active_summons.pop_front()
+
+		if is_instance_valid(oldest):
+			if oldest.has_method("dismiss"):
+				oldest.dismiss()
+			else:
+				oldest.queue_free()
+
+	var facing: float = _facing()
+	var summon = summon_scene.instantiate()
+
+	# Configure BEFORE add_child because _ready runs when it is added.
+	if "damage" in summon:
+		summon.damage = attack3_damage
+
+	if "lifetime" in summon:
+		summon.lifetime = summon_lifetime
+
+	if "summoner" in summon:
+		summon.summoner = self
+
+	_spawn_container().add_child(summon)
+
+	summon.global_position = global_position + Vector2(
+		facing * summon_spawn_offset,
+		0
+	)
+
+	active_summons.append(summon)
+
+	_log(
+		"SUMMONED | DAMAGE: %d | LIFETIME: %.1fs | ACTIVE: %d | COOLDOWN: %.1fs" %
+		[
+			attack3_damage,
+			summon_lifetime,
+			active_summons.size(),
+			attack3_cooldown
+		]
+	)
+
+
+func _prune_summons() -> void:
+	var alive: Array[Node] = []
+
+	for summon in active_summons:
+		if is_instance_valid(summon):
+			alive.append(summon)
+
+	active_summons = alive
+
+
+func _clear_summons() -> void:
+	_prune_summons()
+
+	for summon in active_summons:
+		if summon.has_method("dismiss"):
+			summon.dismiss()
+		else:
+			summon.queue_free()
+
+	active_summons.clear()
+
+
+# =========================================================
 # DAMAGE
 # =========================================================
 
@@ -614,6 +725,7 @@ func die() -> void:
 	collision_shape.set_deferred("disabled", true)
 	_restart_animation("death")
 
+	_clear_summons()
 	_log("DIED")
 
 	await animated_sprite.animation_finished

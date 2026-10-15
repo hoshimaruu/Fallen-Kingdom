@@ -7,14 +7,12 @@ extends CharacterBody2D
 
 @export var speed: float = 180.0
 
-
 # =========================================================
 # HEALTH
 # =========================================================
 
 @export var max_health: int = 100
 @export var respawn_time: float = 3.0
-
 
 # =========================================================
 # ATTACK 1: TARGETED AOE
@@ -23,36 +21,36 @@ extends CharacterBody2D
 @export var attack1_damage: int = 10
 @export var aoe_effect_scene: PackedScene
 @export var attack1_radius: float = 90.0
-
-# Scales the whole AoE effect (visual AND hitbox together).
-# Effective hit radius = attack1_radius * attack1_size_multiplier.
 @export var attack1_size_multiplier: float = 1.4
-
-# Interrupts the enemy and makes it play its hurt animation (even mid-attack).
-# Turn this off for damage only.
 @export var attack1_stagger: bool = true
-
-# Maximum distance for finding an enemy.
 @export var attack1_target_range: float = 400.0
-
-# Frame of the Healer's attack animation when the AoE spawns.
 @export var attack1_cast_frame: int = 2
-
-# Active frames in the AoE effect's own animation.
 @export var attack1_active_start_frame: int = 2
 @export var attack1_active_end_frame: int = 5
-
-@export var attack2_damage: int = 15
-
 
 # =========================================================
 # ATTACK 2: HEAL
 # =========================================================
 
+@export var attack2_damage: int = 15
 @export var heal_amount: int = 30
 @export var heal_effect_scene: PackedScene
 @export var heal_cast_frame: int = 2
 
+# =========================================================
+# ATTACK 3: SUMMON PALADIN
+# =========================================================
+
+@export var attack3_damage: int = 18
+@export var paladin_scene: PackedScene
+@export var paladin_cast_frame: int = 3
+@export var paladin_lifetime: float = 15.0
+@export var max_paladins: int = 1
+@export var paladin_spawn_offset: float = 50.0
+
+# Paladin summon cooldown
+@export var paladin_cooldown: float = 20.0
+var paladin_cooldown_remaining: float = 0.0
 
 # =========================================================
 # ANIMATIONS
@@ -60,11 +58,12 @@ extends CharacterBody2D
 
 @export var attack1_animation: StringName = &"attack1"
 @export var heal_cast_animation: StringName = &"attack2"
+@export var attack3_animation: StringName = &"attack3"
+
 @export var hurt_animation: StringName = &"hurt"
 @export var death_animation: StringName = &"death"
 @export var idle_animation: StringName = &"idle"
 @export var walk_animation: StringName = &"walk"
-
 
 # =========================================================
 # HIT FLASH
@@ -72,7 +71,6 @@ extends CharacterBody2D
 
 @export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
 @export var hit_flash_time: float = 0.25
-
 
 # =========================================================
 # STATE
@@ -88,12 +86,11 @@ var current_attack: String = ""
 
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
-
 var attack_id: int = 0
 
-# Remember the last direction of movement for targeting.
 var last_direction: Vector2 = Vector2.RIGHT
 
+var active_paladins: Array[Node2D] = []
 
 # =========================================================
 # INPUT ACTIONS
@@ -108,14 +105,12 @@ var act_attack1: String
 var act_attack2: String
 var act_attack3: String
 
-
 # =========================================================
 # NODES
 # =========================================================
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
-
 
 # =========================================================
 # READY
@@ -140,16 +135,21 @@ func _ready() -> void:
 	for anim_name in [
 		attack1_animation,
 		heal_cast_animation,
+		attack3_animation,
 		hurt_animation,
 		death_animation
 	]:
 		if _has_animation(anim_name):
-			animated_sprite.sprite_frames.set_animation_loop(anim_name, false)
+			animated_sprite.sprite_frames.set_animation_loop(
+				anim_name,
+				false
+			)
 
 	if _has_animation(idle_animation):
 		animated_sprite.play(idle_animation)
 
 	print("HEALER READY | PLAYER ID: ", player_id, " | HP: ", health)
+	print("PALADIN COOLDOWN: ", paladin_cooldown, " seconds")
 	print("ANIMATIONS: ", animated_sprite.sprite_frames.get_animation_names())
 
 	if aoe_effect_scene == null:
@@ -157,6 +157,9 @@ func _ready() -> void:
 
 	if heal_effect_scene == null:
 		push_warning("Heal Effect Scene is not assigned.")
+
+	if paladin_scene == null:
+		push_warning("Assign Paladin Scene in the Healer Inspector.")
 
 
 func _detect_player_id() -> int:
@@ -176,7 +179,10 @@ func _detect_player_id() -> int:
 
 		current_node = current_node.get_parent()
 
-	push_warning("Healer '%s' could not find a Player1-Player4 ancestor. Using Player1 controls." % name)
+	push_warning(
+		"Healer '%s' could not find a Player1-Player4 ancestor. Using Player1 controls."
+		% name
+	)
 	return 1
 
 
@@ -201,7 +207,10 @@ func _check_input_actions() -> void:
 
 	for action_name in actions:
 		if not InputMap.has_action(action_name):
-			push_warning("Healer Player%d is missing Input Map action '%s'." % [player_id, action_name])
+			push_warning(
+				"Healer Player%d is missing Input Map action '%s'."
+				% [player_id, action_name]
+			)
 
 
 # =========================================================
@@ -242,10 +251,20 @@ func flash_red() -> void:
 
 
 # =========================================================
-# PHYSICS / INPUT
+# PHYSICS / INPUT / COOLDOWN
 # =========================================================
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	# Cooldown keeps counting down even while dead or hurt.
+	if paladin_cooldown_remaining > 0.0:
+		paladin_cooldown_remaining = maxf(
+			paladin_cooldown_remaining - delta,
+			0.0
+		)
+
+		if paladin_cooldown_remaining == 0.0:
+			print("[HEALER] PALADIN SUMMON READY")
+
 	if dead or hurt:
 		velocity = Vector2.ZERO
 		return
@@ -261,6 +280,10 @@ func _physics_process(_delta: float) -> void:
 
 	if Input.is_action_just_pressed(act_attack2):
 		start_heal()
+		return
+
+	if Input.is_action_just_pressed(act_attack3):
+		start_attack3()
 		return
 
 	var direction: Vector2 = Input.get_vector(
@@ -295,7 +318,7 @@ func _physics_process(_delta: float) -> void:
 
 
 # =========================================================
-# ATTACK 1: FIND NEAREST ENEMY AND SPAWN AOE
+# ATTACK 1: TARGETED AOE
 # =========================================================
 
 func start_attack1() -> void:
@@ -339,7 +362,6 @@ func _find_nearest_enemy() -> Node2D:
 	var nearest_enemy: Node2D = null
 	var nearest_distance: float = attack1_target_range
 
-	# Search enemies registered in the enemies group.
 	for enemy in get_tree().get_nodes_in_group("enemies"):
 		if not is_instance_valid(enemy):
 			continue
@@ -354,18 +376,15 @@ func _find_nearest_enemy() -> Node2D:
 		var offset: Vector2 = enemy_node.global_position - global_position
 		var distance: float = offset.length()
 
-		# Ignore enemies outside the target range.
 		if distance > attack1_target_range:
 			continue
 
-		# Only target enemies in the direction the Healer faces.
 		if distance > 0.0:
 			var direction_to_enemy: Vector2 = offset.normalized()
 
 			if direction_to_enemy.dot(last_direction) <= 0.0:
 				continue
 
-		# Keep the closest eligible enemy.
 		if distance < nearest_distance:
 			nearest_distance = distance
 			nearest_enemy = enemy_node
@@ -381,16 +400,11 @@ func _spawn_aoe_on_nearest_enemy() -> void:
 	var target: Node2D = _find_nearest_enemy()
 
 	if target == null:
-		print(
-			"[HEALER AOE] No enemy found in front within ",
-			attack1_target_range,
-			" pixels."
-		)
+		print("[HEALER AOE] No enemy found in front.")
 		return
 
 	var effect: Node = aoe_effect_scene.instantiate()
 
-	# Configure the effect before adding it to the scene.
 	if effect.get("damage") != null:
 		effect.set("damage", attack1_damage)
 
@@ -406,9 +420,8 @@ func _spawn_aoe_on_nearest_enemy() -> void:
 	if effect.get("stagger") != null:
 		effect.set("stagger", attack1_stagger)
 	elif attack1_stagger:
-		push_warning("The AoE effect script has no 'stagger' property, so the enemy will only take damage.")
+		push_warning("AoE effect has no stagger property.")
 
-	# Bigger effect: scales the sprite and the hitbox together.
 	if effect is Node2D:
 		(effect as Node2D).scale = Vector2.ONE * attack1_size_multiplier
 
@@ -418,26 +431,19 @@ func _spawn_aoe_on_nearest_enemy() -> void:
 
 	effect_parent.add_child(effect)
 
-	# Spawn the effect at the selected enemy, not at the Healer.
 	if effect is Node2D:
 		(effect as Node2D).global_position = target.global_position
 
 	print(
 		"[HEALER AOE] SPAWNED ON: ",
 		target.name,
-		" | DISTANCE: ",
-		round(global_position.distance_to(target.global_position)),
-		" | DAMAGE: ",
-		attack1_damage,
-		" | HIT RADIUS: ",
-		attack1_radius * attack1_size_multiplier,
-		" | STAGGER: ",
-		attack1_stagger
+		" | DAMAGE: ", attack1_damage,
+		" | HIT RADIUS: ", attack1_radius * attack1_size_multiplier
 	)
 
 
 # =========================================================
-# ATTACK 2: HEAL THE OTHER PLAYER
+# ATTACK 2: HEAL TEAMMATE
 # =========================================================
 
 func start_heal() -> void:
@@ -445,10 +451,7 @@ func start_heal() -> void:
 		return
 
 	if not _has_animation(heal_cast_animation):
-		push_warning(
-			"Missing heal casting animation: "
-			+ str(heal_cast_animation)
-		)
+		push_warning("Missing heal casting animation: " + str(heal_cast_animation))
 		return
 
 	attacking = true
@@ -489,15 +492,12 @@ func heal_other_player() -> void:
 
 	print(
 		"[HEALER] Heal target: ", target.name,
-		" (", target.get_parent().name, ")",
 		" | HP: ", target.get("health"), "/", target.get("max_health")
 	)
 
 	_spawn_heal_effect(target)
 
 
-# With up to 4 players: heals the living teammate with the LOWEST health percentage
-# (ties go to the closest one). Never targets the Healer itself.
 func _find_heal_target() -> Node:
 	var best: Node = null
 	var best_ratio: float = INF
@@ -520,10 +520,15 @@ func _find_heal_target() -> Node:
 			continue
 
 		var ratio: float = float(int(player_health)) / float(int(player_max))
-		var distance: float = global_position.distance_to((player as Node2D).global_position)
+		var distance: float = global_position.distance_to(
+			(player as Node2D).global_position
+		)
 
 		var lower_health: bool = ratio < best_ratio - 0.001
-		var same_health_but_closer: bool = absf(ratio - best_ratio) <= 0.001 and distance < best_distance
+		var same_health_but_closer: bool = (
+			absf(ratio - best_ratio) <= 0.001
+			and distance < best_distance
+		)
 
 		if lower_health or same_health_but_closer:
 			best = player
@@ -551,13 +556,163 @@ func _spawn_heal_effect(target: Node) -> void:
 	elif effect.get("heal_amount") != null:
 		effect.set("heal_amount", heal_amount)
 
-	# Parent to the teammate so the effect follows them.
 	target.add_child(effect)
 
 	if effect is Node2D:
 		(effect as Node2D).position = Vector2.ZERO
 
 	print("[HEALER] Healing effect spawned on ", target.name)
+
+
+# =========================================================
+# ATTACK 3: SUMMON PALADIN
+# =========================================================
+
+func start_attack3() -> void:
+	if attacking or hurt or dead:
+		return
+
+	# Block summoning while the 20-second cooldown is active.
+	if paladin_cooldown_remaining > 0.0:
+		print(
+			"[HEALER] PALADIN SUMMON BLOCKED | COOLDOWN: %.1fs"
+			% paladin_cooldown_remaining
+		)
+		return
+
+	if not _has_animation(attack3_animation):
+		push_warning("Healer is missing attack3 animation.")
+		return
+
+	if paladin_scene == null:
+		push_warning("Assign Paladin Scene in the Healer Inspector.")
+		return
+
+	attacking = true
+	current_attack = "attack3"
+	velocity = Vector2.ZERO
+
+	attack_id += 1
+	var this_attack_id: int = attack_id
+
+	print("PLAYER ", player_id, " SUMMONING PALADIN")
+
+	_restart_animation(attack3_animation)
+
+	if not await _wait_for_frame(
+		attack3_animation,
+		paladin_cast_frame,
+		this_attack_id
+	):
+		return
+
+	# Start the cooldown only if the Paladin is successfully summoned.
+	var summon_succeeded: bool = _summon_paladin()
+
+	if summon_succeeded:
+		paladin_cooldown_remaining = paladin_cooldown
+
+		print(
+			"[HEALER] PALADIN COOLDOWN STARTED: %.1f seconds"
+			% paladin_cooldown
+		)
+
+	if not await _wait_for_animation_end(
+		attack3_animation,
+		this_attack_id
+	):
+		return
+
+	end_attack()
+
+
+func _summon_paladin() -> bool:
+	# Rebuild a correctly typed Array[Node2D].
+	var valid_paladins: Array[Node2D] = []
+
+	for paladin in active_paladins:
+		if (
+			is_instance_valid(paladin)
+			and not paladin.is_queued_for_deletion()
+		):
+			valid_paladins.append(paladin)
+
+	active_paladins = valid_paladins
+
+	# Enforce the maximum number of active summons.
+	var allowed_count: int = maxi(max_paladins, 1)
+
+	while active_paladins.size() >= allowed_count:
+		var oldest: Node2D = active_paladins.pop_front()
+
+		if not is_instance_valid(oldest):
+			continue
+
+		if oldest.has_method("dismiss"):
+			oldest.call("dismiss")
+		else:
+			oldest.queue_free()
+
+	# Create the new Paladin.
+	var paladin_instance: Node = paladin_scene.instantiate()
+
+	if not paladin_instance is Node2D:
+		push_error("Paladin scene root must inherit Node2D.")
+		paladin_instance.free()
+		return false
+
+	var paladin: Node2D = paladin_instance as Node2D
+
+	# Configure before adding to the scene.
+	paladin.set("damage", attack3_damage)
+	paladin.set("lifetime", paladin_lifetime)
+	paladin.set("summoner", self)
+
+	var scene_root: Node = get_tree().current_scene
+
+	if scene_root == null:
+		scene_root = get_parent()
+
+	if scene_root == null:
+		push_error("Cannot summon Paladin: no scene parent is available.")
+		paladin.free()
+		return false
+
+	scene_root.add_child(paladin)
+
+	var facing: Vector2 = (
+		Vector2.LEFT
+		if animated_sprite.flip_h
+		else Vector2.RIGHT
+	)
+
+	paladin.global_position = (
+		global_position + facing * paladin_spawn_offset
+	)
+
+	active_paladins.append(paladin)
+
+	print(
+		"[HEALER] PALADIN SUMMONED | Damage: ",
+		attack3_damage,
+		" | Lifetime: ", paladin_lifetime,
+		" | Active: ", active_paladins.size()
+	)
+
+	return true
+
+
+func _clear_paladins() -> void:
+	for paladin in active_paladins:
+		if not is_instance_valid(paladin):
+			continue
+
+		if paladin.has_method("dismiss"):
+			paladin.call("dismiss")
+		else:
+			paladin.queue_free()
+
+	active_paladins.clear()
 
 
 # =========================================================
@@ -623,6 +778,8 @@ func get_attack_damage() -> int:
 			return attack1_damage
 		"attack2":
 			return attack2_damage
+		"attack3":
+			return attack3_damage
 
 	return 0
 
@@ -635,7 +792,7 @@ func take_damage(damage: int) -> void:
 	if dead or damage <= 0:
 		return
 
-	health = max(health - damage, 0)
+	health = maxi(health - damage, 0)
 
 	print(
 		"PLAYER ", player_id,
@@ -649,7 +806,6 @@ func take_damage(damage: int) -> void:
 		die()
 		return
 
-	# Interrupt the current attack.
 	attack_id += 1
 	attacking = false
 	current_attack = ""
@@ -690,14 +846,12 @@ func die() -> void:
 	current_attack = ""
 	velocity = Vector2.ZERO
 
+	_clear_paladins()
 	collision_shape.set_deferred("disabled", true)
 
 	if _has_animation(death_animation):
 		_restart_animation(death_animation)
-
-	print("PLAYER ", player_id, " HEALER DIED")
-
-	if _has_animation(death_animation):
+		print("PLAYER ", player_id, " HEALER DIED")
 		await animated_sprite.animation_finished
 
 	if not is_inside_tree():
@@ -732,6 +886,5 @@ func respawn() -> void:
 	print(
 		"HEALER RESPAWNED | PLAYER ID: ",
 		player_id,
-		" | HP: ",
-		health
+		" | HP: ", health
 	)
