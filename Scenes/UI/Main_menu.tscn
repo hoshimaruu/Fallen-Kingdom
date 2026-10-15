@@ -81,7 +81,6 @@ stretch_mode = 5
 script = ExtResource("4_mi4od")
 
 [node name="CanvasLayer" parent="." unique_id=600065786 instance=ExtResource("5_cdexa")]
-visible = false
 
 [node name="Options" type="Panel" parent="." unique_id=1706218634]
 layout_mode = 1
