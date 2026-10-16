@@ -67,6 +67,8 @@ var act_attack3: String
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
+
+
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
 

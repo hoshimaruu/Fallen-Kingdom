@@ -112,6 +112,8 @@ var act_attack3: String
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
+@onready var healthbar = $Healthbar # Added by Mortis
+
 # =========================================================
 # READY
 # =========================================================
@@ -128,6 +130,8 @@ func _ready() -> void:
 	dead = false
 	hurt = false
 	attacking = false
+	
+	healthbar.init_health(health)
 
 	base_modulate = animated_sprite.modulate
 	collision_shape.set_deferred("disabled", false)
@@ -805,6 +809,8 @@ func take_damage(damage: int) -> void:
 	if health <= 0:
 		die()
 		return
+		
+	healthbar.health = health # Added by Mortis
 
 	attack_id += 1
 	attacking = false

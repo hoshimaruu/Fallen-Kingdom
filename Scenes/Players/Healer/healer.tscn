@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://bne0ukl7g5q8x" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Idle.png" id="5_vmcd5"]
 [ext_resource type="Texture2D" uid="uid://bt7ndm0d7qqoi" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Hurt.png" id="6_ga3ik"]
 [ext_resource type="Texture2D" uid="uid://uyjksenfqis1" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Priest/Priest with shadows/Priest_Walk.png" id="6_gkxca"]
+[ext_resource type="PackedScene" uid="uid://diwkf2knayiu1" path="res://Scenes/UI/Healthbar.tscn" id="11_t63cr"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_tbbx2"]
 atlas = ExtResource("1_ap6vd")
@@ -389,3 +390,9 @@ frame_progress = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1660289662]
 shape = SubResource("CircleShape2D_i6bpt")
+
+[node name="Healthbar" parent="." unique_id=754082656 instance=ExtResource("11_t63cr")]
+offset_left = -13.0
+offset_top = -18.0
+offset_right = 14.5
+offset_bottom = -15.5
