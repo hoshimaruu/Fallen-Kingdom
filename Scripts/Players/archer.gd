@@ -1,5 +1,8 @@
-
 extends CharacterBody2D
+
+# Emitted for HUDs, cameras and score keeping.
+signal health_changed(current: int, maximum: int)
+signal died(character)
 
 # --- Movement ---
 @export var speed: float = 180.0
@@ -8,7 +11,7 @@ extends CharacterBody2D
 @export var dash_speed: float = 600.0
 @export var dash_duration: float = 0.15
 @export var dash_cooldown: float = 4.0
-@export var dash_immunity_time: float = 0.4
+@export var dash_immunity_time: float = 0.4    # immune this long from dash start (never less than dash_duration)
 @export var dash_anim_speed: float = 2.5
 @export var dash_tint: Color = Color(0.7, 0.85, 1.0, 0.7)
 @export var afterimage_interval: float = 0.03
@@ -22,28 +25,36 @@ extends CharacterBody2D
 @export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
 @export var hit_flash_time: float = 0.25
 
+# --- Stagger ---
+# Damage never interrupts movement or attacks. Only stagger() does
+# (an enemy attack asks for it with take_damage(amount, true)).
+# Turn this on for a character that should ignore stagger completely.
+@export var stagger_immune: bool = false
+
 # --- Attacks ---
 @export var attack1_damage: int = 15
 @export var attack2_damage: int = 25
-@export var attack1_release_frame: int = 6
-@export var attack2_release_frame: int = 11
+@export var attack1_release_frame: int = 6     # attack1 animation: frames 0-8
+@export var attack2_release_frame: int = 11    # attack2 animation: frames 0-11
 @export var attack1_cooldown: float = 0.0
 @export var attack2_cooldown: float = 10.0
 
-# --- Arrows ---
+# --- Arrows (assign both scenes in the Inspector!) ---
 @export var arrow1_scene: PackedScene
 @export var arrow2_scene: PackedScene
-@export var arrow_spawn_offset: float = 40.0
-@export var arrow2_spawn_offset: float = 70.0
-@export var arrow_spawn_height: float = 0.0
+@export var arrow_spawn_offset: float = 40.0   # attack1 arrow distance in front of the archer
+@export var arrow2_spawn_offset: float = 70.0  # attack2 (heavy) arrow distance in front of the archer
+@export var arrow_spawn_height: float = 0.0    # move arrows up (negative) or down (positive) to match the bow
 
 # --- State ---
 var player_id: int = 0
 var health: int
 var dead: bool = false
 var hurt: bool = false
+var hurt_id: int = 0
 var attacking: bool = false
 var current_attack: String = ""
+var attack_id: int = 0
 var arrow_fired: bool = false
 
 var dashing: bool = false
@@ -52,6 +63,7 @@ var dash_timer: float = 0.0
 var afterimage_timer: float = 0.0
 var immunity_timer: float = 0.0
 
+# Remaining cooldown per ability
 var cooldowns: Dictionary = {"attack1": 0.0, "attack2": 0.0, "dash": 0.0}
 
 # --- Input action names ---
@@ -61,13 +73,12 @@ var act_left: String
 var act_right: String
 var act_attack1: String
 var act_attack2: String
-var act_attack3: String
+var act_attack3: String   # dash
 
 # --- Nodes ---
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
-
-
+@onready var healthbar: Node = get_node_or_null("Healthbar")  # optional
 
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
@@ -80,11 +91,19 @@ var flash_tween: Tween
 func _ready() -> void:
 	add_to_group("players")
 
+	# Top-down game: Floating stops bodies being carried along like moving platforms
+	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
+
 	player_id = _detect_player_id()
+
 	_setup_actions()
-	_check_input_actions()
+
+	if not InputMap.has_action(act_up):
+		push_warning("Input action '%s' doesn't exist. Add the PlayerInput autoload (player_input.gd) or create the actions in the Input Map." % act_up)
 
 	health = max_health
+	if healthbar != null:
+		healthbar.init_health(health)
 	base_modulate = animated_sprite.modulate
 
 	collision_shape.set_deferred("disabled", false)
@@ -101,6 +120,7 @@ func _ready() -> void:
 	_log("RELEASE FRAMES | ATTACK1: %d | ATTACK2: %d" % [attack1_release_frame, attack2_release_frame])
 	_log("ANIMATIONS: %s" % [animated_sprite.sprite_frames.get_animation_names()])
 
+	# Arrows can't spawn if these slots are empty, so say so right at the start
 	if arrow1_scene == null:
 		_log("WARNING: 'Arrow1 Scene' is NOT assigned in the Inspector, attack1 can't fire")
 	if arrow2_scene == null:
@@ -108,28 +128,18 @@ func _ready() -> void:
 
 
 func _detect_player_id() -> int:
-	var current_node: Node = self
+	# Reads the number from the parent node name: Player1, Player2, Player3 or Player4
+	var parent_name: String = String(get_parent().name)
 
-	while current_node != null:
-		var node_name: String = String(current_node.name)
+	if parent_name.begins_with("Player") and parent_name.substr(6).is_valid_int():
+		return clampi(parent_name.substr(6).to_int(), 1, 4)
 
-		if node_name.begins_with("Player") and node_name.length() > 6:
-			var id_text: String = node_name.substr(6)
-
-			if id_text.is_valid_int():
-				var detected_id: int = id_text.to_int()
-
-				if detected_id >= 1 and detected_id <= 4:
-					return detected_id
-
-		current_node = current_node.get_parent()
-
-	push_warning("Archer '%s' could not find a Player1-Player4 ancestor. Using Player1 controls." % name)
-	return 1
+	push_warning("%s is not under Player1 - Player4 (parent: %s), using Player 1 controls." % [name, parent_name])
+	return 0
 
 
 func _setup_actions() -> void:
-	var prefix: String = "p%d_" % player_id
+	var prefix: String = "p%d_" % maxi(player_id, 1)
 
 	act_up = prefix + "up"
 	act_down = prefix + "down"
@@ -138,17 +148,6 @@ func _setup_actions() -> void:
 	act_attack1 = prefix + "attack1"
 	act_attack2 = prefix + "attack2"
 	act_attack3 = prefix + "attack3"
-
-
-func _check_input_actions() -> void:
-	var actions: Array = [
-		act_up, act_down, act_left, act_right,
-		act_attack1, act_attack2, act_attack3
-	]
-
-	for action_name in actions:
-		if not InputMap.has_action(action_name):
-			push_warning("Archer Player%d is missing Input Map action '%s'." % [player_id, action_name])
 
 
 # =========================================================
@@ -242,6 +241,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# --- Ability input ---
 	if Input.is_action_just_pressed(act_attack1):
 		start_attack("attack1")
 		return
@@ -254,13 +254,16 @@ func _physics_process(delta: float) -> void:
 		start_dash()
 		return
 
-	var direction: Vector2 = Input.get_vector(act_left, act_right, act_up, act_down)
+	# --- Movement ---
+	var direction := Input.get_vector(act_left, act_right, act_up, act_down)
+
 	velocity = direction * speed
 
+	# Only horizontal movement changes facing
 	if direction.x != 0:
 		animated_sprite.flip_h = direction.x < 0
 
-	var wanted_anim: String = "walk" if direction != Vector2.ZERO else "idle"
+	var wanted_anim := "walk" if direction != Vector2.ZERO else "idle"
 
 	if animated_sprite.animation != wanted_anim:
 		animated_sprite.play(wanted_anim)
@@ -288,8 +291,10 @@ func start_dash() -> void:
 
 	start_cooldown("dash", dash_cooldown)
 
+	# Dash in the facing direction
 	dash_direction = -1.0 if animated_sprite.flip_h else 1.0
 
+	# Stop any leftover hit flash so it can't wash out the dash tint
 	if flash_tween:
 		flash_tween.kill()
 
@@ -309,6 +314,8 @@ func end_dash() -> void:
 
 	dashing = false
 	velocity = Vector2.ZERO
+
+	# The tint stays until immunity ends, so the player can see they're still protected
 	animated_sprite.speed_scale = 1.0
 
 	_log("DASH FINISHED")
@@ -326,7 +333,7 @@ func reset_dash_visuals() -> void:
 
 
 func spawn_afterimage() -> void:
-	var texture: Texture2D = animated_sprite.sprite_frames.get_frame_texture(
+	var texture := animated_sprite.sprite_frames.get_frame_texture(
 		animated_sprite.animation,
 		animated_sprite.frame
 	)
@@ -342,7 +349,8 @@ func spawn_afterimage() -> void:
 	ghost.scale = animated_sprite.global_scale
 	ghost.modulate = Color(dash_tint.r, dash_tint.g, dash_tint.b, 0.5)
 
-	var parent: Node = get_parent()
+	# Add next to the archer, drawn just behind it
+	var parent := get_parent()
 	parent.add_child(ghost)
 	parent.move_child(ghost, get_index())
 	ghost.global_position = animated_sprite.global_position
@@ -364,7 +372,10 @@ func start_attack(animation_name: String) -> void:
 		_log("%s BLOCKED | COOLDOWN: %.2fs" % [animation_name.to_upper(), cooldowns[animation_name]])
 		return
 
-	var is_attack1: bool = animation_name == "attack1"
+	var is_attack1 := animation_name == "attack1"
+
+	attack_id += 1
+	var my_id: int = attack_id
 
 	attacking = true
 	current_attack = animation_name
@@ -380,9 +391,9 @@ func start_attack(animation_name: String) -> void:
 
 	_restart_animation(animation_name)
 
-	await wait_for_attack_frame(attack1_release_frame if is_attack1 else attack2_release_frame)
+	await wait_for_attack_frame(attack1_release_frame if is_attack1 else attack2_release_frame, my_id)
 
-	if dead or hurt:
+	if not _attack_alive(my_id):
 		return
 
 	if not arrow_fired:
@@ -390,18 +401,23 @@ func start_attack(animation_name: String) -> void:
 
 	await animated_sprite.animation_finished
 
-	if dead or hurt:
+	if not _attack_alive(my_id):
 		return
 
 	end_attack()
 
 
-func wait_for_attack_frame(target_frame: int) -> void:
-	var last_frame: int = animated_sprite.sprite_frames.get_frame_count(animated_sprite.animation) - 1
+func _attack_alive(id: int) -> bool:
+	return is_inside_tree() and not dead and not hurt and attacking and id == attack_id
+
+
+func wait_for_attack_frame(target_frame: int, id: int) -> void:
+	# Never wait for a frame the animation doesn't have (that would block the arrow forever)
+	var last_frame := animated_sprite.sprite_frames.get_frame_count(animated_sprite.animation) - 1
 	target_frame = mini(target_frame, last_frame)
 
 	while true:
-		if dead or hurt or not attacking:
+		if not _attack_alive(id):
 			return
 
 		if animated_sprite.frame >= target_frame:
@@ -440,17 +456,20 @@ func fire_arrow() -> void:
 		_log("ERROR: %s SCENE IS NOT ASSIGNED (select the archer node, set it in the Inspector)" % arrow_name)
 		return
 
-	var arrow: Node = arrow_scene.instantiate()
+	var arrow = arrow_scene.instantiate()
 
+	# Add the arrow to the Main scene (falls back to the current scene)
 	var container: Node = get_parent().get_parent()
 	if container == null:
 		container = get_tree().current_scene
 
 	container.add_child(arrow)
 
-	var facing_direction: float = -1.0 if animated_sprite.flip_h else 1.0
+	var facing_direction := -1.0 if animated_sprite.flip_h else 1.0
+
 	arrow.global_position = global_position + Vector2(facing_direction * spawn_offset, arrow_spawn_height)
 
+	# Give the arrow its direction and damage
 	if arrow.has_method("setup"):
 		arrow.setup(Vector2(facing_direction, 0), damage)
 	else:
@@ -459,6 +478,7 @@ func fire_arrow() -> void:
 		if "damage" in arrow:
 			arrow.damage = damage
 
+	# Flip arrow when facing left
 	if facing_direction < 0:
 		arrow.scale.x = -abs(arrow.scale.x)
 
@@ -482,10 +502,33 @@ func end_attack() -> void:
 # DAMAGE / DEATH / RESPAWN
 # =========================================================
 
-func take_damage(damage: int) -> void:
+func _update_healthbar() -> void:
+	health_changed.emit(health, max_health)
+
+	if healthbar != null:
+		healthbar.health = health
+
+
+# Public: heal effects and any future healing source should call this, so the
+# health bar and signals stay in sync. Returns how much was really healed.
+func heal(amount: int) -> int:
+	if dead or amount <= 0:
+		return 0
+
+	var old_health: int = health
+	health = mini(health + amount, max_health)
+	_update_healthbar()
+
+	return health - old_health
+
+
+# Damage never interrupts movement, attacks or dashes. Pass do_stagger = true
+# (or call stagger()) for enemy attacks that should.
+func take_damage(damage: int, do_stagger: bool = false) -> void:
 	if dead:
 		return
 
+	# Immune for the whole dash (and a little after, see dash_immunity_time)
 	if is_immune():
 		_log("DAMAGE BLOCKED | IMMUNE (%.2fs left)" % immunity_timer)
 		return
@@ -493,27 +536,44 @@ func take_damage(damage: int) -> void:
 	health = max(health - damage, 0)
 
 	_log("TOOK %d DAMAGE | HP: %d/%d" % [damage, health, max_health])
+	_update_healthbar()
 
 	if health <= 0:
 		die()
-		flash_red()
+		flash_red()   # after die(), so its visual reset doesn't cancel the flash
+		return
+
+	flash_red()
+
+	if do_stagger:
+		stagger()
+
+
+func stagger(duration: float = 0.0) -> void:
+	if dead or stagger_immune or is_immune():
 		return
 
 	hurt = true
+	hurt_id += 1
+	var my_hurt: int = hurt_id
+
+	attack_id += 1
 	attacking = false
 	current_attack = ""
 	arrow_fired = false
 	velocity = Vector2.ZERO
 
 	reset_dash_visuals()
-	flash_red()
 	_restart_animation("hurt")
 
-	_log("HURT")
+	_log("STAGGERED")
 
-	await animated_sprite.animation_finished
+	if duration > 0.0:
+		await get_tree().create_timer(duration).timeout
+	else:
+		await animated_sprite.animation_finished
 
-	if dead:
+	if dead or my_hurt != hurt_id:
 		return
 
 	hurt = false
@@ -526,6 +586,8 @@ func die() -> void:
 
 	dead = true
 	hurt = false
+	hurt_id += 1
+	attack_id += 1
 	attacking = false
 	dashing = false
 	current_attack = ""
@@ -537,6 +599,7 @@ func die() -> void:
 	_restart_animation("death")
 
 	_log("DIED")
+	died.emit(self)
 
 	await animated_sprite.animation_finished
 	await get_tree().create_timer(respawn_time).timeout
@@ -549,6 +612,9 @@ func die() -> void:
 
 func respawn() -> void:
 	health = max_health
+	_update_healthbar()
+	hurt_id += 1
+	attack_id += 1
 
 	dead = false
 	hurt = false

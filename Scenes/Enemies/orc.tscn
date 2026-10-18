@@ -286,6 +286,7 @@ radius = 13.038404
 collision_layer = 2
 collision_mask = 21
 script = ExtResource("1_ny6sd")
+attack_damage = 15
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1978246744]
 position = Vector2(0, -2)

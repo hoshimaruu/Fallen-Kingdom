@@ -9,7 +9,7 @@ extends Node2D
 #   death   (not looping)   optional, plays when time runs out, else it fades
 
 @export var damage: int = 12
-@export var lifetime: float = 12.0
+@export var lifetime: float = 25.0
 @export var move_speed: float = 140.0
 @export var detect_range: float = 350.0
 @export var attack_range: float = 45.0
@@ -98,7 +98,8 @@ func _process(delta: float) -> void:
 # TARGETING / MOVEMENT
 # =========================================================
 
-func _valid_target(node: Node2D) -> bool:
+# Untyped on purpose: a freed enemy cannot be passed to a typed parameter.
+func _valid_target(node) -> bool:
 	if node == null or not is_instance_valid(node):
 		return false
 
@@ -155,7 +156,7 @@ func _face(x: float) -> void:
 # ATTACK
 # =========================================================
 
-func _attack(victim: Node2D) -> void:
+func _attack(victim) -> void:
 	attacking = true
 	attack_timer = attack_interval
 

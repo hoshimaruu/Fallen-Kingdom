@@ -1,5 +1,8 @@
-
 extends CharacterBody2D
+
+# Emitted for HUDs, cameras and score keeping.
+signal health_changed(current: int, maximum: int)
+signal died(character)
 
 # =========================================================
 # MOVEMENT
@@ -24,7 +27,7 @@ extends CharacterBody2D
 
 @export var attack1_cooldown: float = 0.0
 @export var attack2_cooldown: float = 3.0
-@export var attack3_cooldown: float = 5.0
+@export var attack3_cooldown: float = 15.0
 
 # =========================================================
 # FIREBALL
@@ -46,7 +49,7 @@ extends CharacterBody2D
 @export var ice_target_offset: Vector2 = Vector2.ZERO
 
 # =========================================================
-# SUMMON (ATTACK 3 - BAT)
+# SUMMON (attack3)
 # =========================================================
 
 @export var summon_scene: PackedScene
@@ -62,6 +65,12 @@ extends CharacterBody2D
 @export var hit_flash_color: Color = Color(1.0, 0.25, 0.25, 1.0)
 @export var hit_flash_time: float = 0.25
 
+# --- Stagger ---
+# Damage never interrupts movement or attacks. Only stagger() does
+# (an enemy attack asks for it with take_damage(amount, true)).
+# Turn this on for a character that should ignore stagger completely.
+@export var stagger_immune: bool = false
+
 # =========================================================
 # STATE
 # =========================================================
@@ -71,12 +80,14 @@ var health: int = 0
 
 var dead: bool = false
 var hurt: bool = false
+var hurt_id: int = 0
 var attacking: bool = false
 
 var current_attack: String = ""
 var projectile_fired: bool = false
 var attack_id: int = 0
-var active_summons: Array[Node] = []
+# Untyped on purpose: a typed array breaks when a summon was freed.
+var active_summons: Array = []
 
 var attack_cooldowns: Dictionary = {
 	"attack1": 0.0,
@@ -106,6 +117,7 @@ var act_attack3: String
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
+@onready var healthbar: Node = get_node_or_null("Healthbar")  # optional
 
 # =========================================================
 # READY
@@ -121,6 +133,8 @@ func _ready() -> void:
 	_check_input_actions()
 
 	health = max_health
+	if healthbar != null:
+		healthbar.init_health(health)
 	base_modulate = animated_sprite.modulate
 
 	collision_shape.set_deferred("disabled", false)
@@ -140,11 +154,6 @@ func _ready() -> void:
 	_log(
 		"ICE: %d dmg | release frame %d | range %s | freeze" %
 		[attack2_damage, ice_release_frame, ice_target_range]
-	)
-
-	_log(
-		"BAT SUMMON COOLDOWN: %.1f seconds" %
-		attack3_cooldown
 	)
 
 	_log(
@@ -588,7 +597,7 @@ func fire_ice() -> void:
 
 
 # =========================================================
-# SUMMON BAT / FAMILIAR
+# SUMMON
 # =========================================================
 
 func summon_familiar() -> void:
@@ -603,9 +612,9 @@ func summon_familiar() -> void:
 
 	_prune_summons()
 
-	# Dismiss the oldest summon if at the limit.
+	# Stay under the limit: the oldest summon leaves first.
 	while active_summons.size() >= max_summons:
-		var oldest: Node = active_summons.pop_front()
+		var oldest: Variant = active_summons.pop_front()
 
 		if is_instance_valid(oldest):
 			if oldest.has_method("dismiss"):
@@ -616,7 +625,7 @@ func summon_familiar() -> void:
 	var facing: float = _facing()
 	var summon = summon_scene.instantiate()
 
-	# Configure BEFORE add_child because _ready runs when it is added.
+	# Configure BEFORE add_child, because _ready runs when it is added.
 	if "damage" in summon:
 		summon.damage = attack3_damage
 
@@ -636,18 +645,13 @@ func summon_familiar() -> void:
 	active_summons.append(summon)
 
 	_log(
-		"SUMMONED | DAMAGE: %d | LIFETIME: %.1fs | ACTIVE: %d | COOLDOWN: %.1fs" %
-		[
-			attack3_damage,
-			summon_lifetime,
-			active_summons.size(),
-			attack3_cooldown
-		]
+		"SUMMONED | DAMAGE: %d | LIFETIME: %.1fs | ACTIVE: %d" %
+		[attack3_damage, summon_lifetime, active_summons.size()]
 	)
 
 
 func _prune_summons() -> void:
-	var alive: Array[Node] = []
+	var alive: Array = []
 
 	for summon in active_summons:
 		if is_instance_valid(summon):
@@ -672,7 +676,29 @@ func _clear_summons() -> void:
 # DAMAGE
 # =========================================================
 
-func take_damage(damage: int) -> void:
+func _update_healthbar() -> void:
+	health_changed.emit(health, max_health)
+
+	if healthbar != null:
+		healthbar.health = health
+
+
+# Public: heal effects and any future healing source should call this, so the
+# health bar and signals stay in sync. Returns how much was really healed.
+func heal(amount: int) -> int:
+	if dead or amount <= 0:
+		return 0
+
+	var old_health: int = health
+	health = mini(health + amount, max_health)
+	_update_healthbar()
+
+	return health - old_health
+
+
+# Damage never interrupts movement or casting. Pass do_stagger = true (or call
+# stagger()) for enemy attacks that should.
+func take_damage(damage: int, do_stagger: bool = false) -> void:
 	if dead:
 		return
 
@@ -687,21 +713,36 @@ func take_damage(damage: int) -> void:
 		]
 	)
 
+	_update_healthbar()
 	flash_red()
 
 	if health <= 0:
 		die()
 		return
 
+	if do_stagger:
+		stagger()
+
+
+func stagger(duration: float = 0.0) -> void:
+	if dead or stagger_immune:
+		return
+
 	hurt = true
+	hurt_id += 1
+	var my_hurt: int = hurt_id
+
 	_cancel_attack()
 	velocity = Vector2.ZERO
 
 	_restart_animation("hurt")
 
-	await animated_sprite.animation_finished
+	if duration > 0.0:
+		await get_tree().create_timer(duration).timeout
+	else:
+		await animated_sprite.animation_finished
 
-	if dead:
+	if dead or my_hurt != hurt_id:
 		return
 
 	hurt = false
@@ -718,6 +759,7 @@ func die() -> void:
 
 	dead = true
 	hurt = false
+	hurt_id += 1
 
 	_cancel_attack()
 	velocity = Vector2.ZERO
@@ -727,6 +769,7 @@ func die() -> void:
 
 	_clear_summons()
 	_log("DIED")
+	died.emit(self)
 
 	await animated_sprite.animation_finished
 
@@ -744,6 +787,8 @@ func die() -> void:
 
 func respawn() -> void:
 	health = max_health
+	_update_healthbar()
+	hurt_id += 1
 
 	dead = false
 	hurt = false

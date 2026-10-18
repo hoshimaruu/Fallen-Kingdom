@@ -1,5 +1,7 @@
-
 extends Node2D
+
+# Root node of the Paladin scene: Node2D, with an AnimatedSprite2D child.
+# The Healer sets damage, lifetime and summoner before adding it to the scene.
 
 # =========================================================
 # STATS
@@ -7,7 +9,7 @@ extends Node2D
 
 @export var max_health: int = 120
 @export var damage: int = 18
-@export var lifetime: float = 15.0
+@export var lifetime: float = 20.0
 @export var move_speed: float = 160.0
 
 @export var detect_range: float = 400.0
@@ -25,6 +27,7 @@ extends Node2D
 @export var idle_animation: StringName = &"idle"
 @export var move_animation: StringName = &"walk"
 
+# Attacks are used in order: thrust -> slash -> double slash.
 @export var attack1_animation: StringName = &"attack1"
 @export var attack2_animation: StringName = &"attack2"
 @export var attack3_animation: StringName = &"attack3"
@@ -39,6 +42,7 @@ extends Node2D
 var health: int = 120
 var summoner: Node2D
 var target: Node2D
+var attack_target: Node2D
 
 var attacking: bool = false
 var hurt: bool = false
@@ -55,7 +59,7 @@ var action_token: int = 0
 
 
 # =========================================================
-# READY
+# READY / PROCESS
 # =========================================================
 
 func _ready() -> void:
@@ -69,14 +73,17 @@ func _ready() -> void:
 		queue_free()
 		return
 
-	_set_loop(idle_animation, true)
-	_set_loop(move_animation, true)
+	for anim_name in [idle_animation, move_animation]:
+		_set_loop(anim_name, true)
 
-	_set_loop(attack1_animation, false)
-	_set_loop(attack2_animation, false)
-	_set_loop(attack3_animation, false)
-	_set_loop(hurt_animation, false)
-	_set_loop(death_animation, false)
+	for anim_name in [
+		attack1_animation,
+		attack2_animation,
+		attack3_animation,
+		hurt_animation,
+		death_animation
+	]:
+		_set_loop(anim_name, false)
 
 	_play_if_available(idle_animation)
 
@@ -87,205 +94,164 @@ func _ready() -> void:
 	)
 
 
-# =========================================================
-# PROCESS
-# =========================================================
-
 func _process(delta: float) -> void:
 	if disappearing:
 		return
 
 	remaining_lifetime -= delta
-	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
-	retarget_timer -= delta
 
 	if remaining_lifetime <= 0.0:
 		dismiss()
 		return
 
-	if retarget_timer <= 0.0:
-		target = _find_target()
-		retarget_timer = retarget_time
+	attack_cooldown = maxf(attack_cooldown - delta, 0.0)
 
 	if attacking or hurt:
 		return
 
-	if _valid_target(target):
-		var distance: float = global_position.distance_to(
-			target.global_position
-		)
+	retarget_timer -= delta
 
-		if distance <= attack_range:
-			if attack_cooldown <= 0.0:
-				_start_attack()
-			else:
-				_play_if_available(idle_animation)
-			return
+	if retarget_timer <= 0.0 or not _valid_target(target):
+		target = _find_target()
+		retarget_timer = retarget_time
 
-		_move_toward(target.global_position)
+	if not _valid_target(target):
+		_follow_summoner(delta)
 		return
 
-	_follow_summoner()
+	var offset: Vector2 = target.global_position - global_position
+	_face(offset.x)
+
+	if offset.length() > attack_range:
+		_move_toward(target.global_position, delta)
+	elif attack_cooldown <= 0.0:
+		_start_attack(target)
+	else:
+		_play_if_available(idle_animation)
 
 
 # =========================================================
 # TARGETING
 # =========================================================
 
-func _find_target() -> Node2D:
-	var nearest: Node2D = null
-	var nearest_distance: float = detect_range
-
-	for enemy in get_tree().get_nodes_in_group("enemies"):
-		if not enemy is Node2D:
-			continue
-
-		var enemy_node := enemy as Node2D
-
-		if not _valid_target(enemy_node):
-			continue
-
-		var distance: float = global_position.distance_to(
-			enemy_node.global_position
-		)
-
-		if distance < nearest_distance:
-			nearest_distance = distance
-			nearest = enemy_node
-
-	return nearest
-
-
-func _valid_target(candidate: Node2D) -> bool:
-	if not is_instance_valid(candidate):
+# Untyped on purpose: a freed enemy cannot be passed to a typed parameter.
+func _valid_target(candidate) -> bool:
+	if not is_instance_valid(candidate) or not candidate is Node2D:
 		return false
 
 	if candidate.is_queued_for_deletion():
 		return false
 
-	if candidate.get("dead") == true:
-		return false
+	return candidate.get("dead") != true
 
-	return true
+
+func _find_target() -> Node2D:
+	var nearest: Node2D = null
+	var nearest_distance: float = detect_range
+
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not _valid_target(enemy):
+			continue
+
+		var distance: float = global_position.distance_to(enemy.global_position)
+
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = enemy
+
+	return nearest
 
 
 # =========================================================
 # MOVEMENT
 # =========================================================
 
-func _move_toward(destination: Vector2) -> void:
-	var offset: Vector2 = destination - global_position
-
-	if offset.length() > 2.0:
-		global_position += (
-			offset.normalized()
-			* move_speed
-			* get_process_delta_time()
-		)
-
-		if offset.x != 0.0:
-			animated_sprite.flip_h = offset.x < 0.0
-
-		_play_if_available(move_animation)
+func _face(x: float) -> void:
+	if absf(x) > 1.0:
+		animated_sprite.flip_h = x < 0.0
 
 
-func _follow_summoner() -> void:
-	if not is_instance_valid(summoner):
-		_play_if_available(idle_animation)
-		return
+func _move_toward(destination: Vector2, delta: float) -> void:
+	_face(destination.x - global_position.x)
+	global_position = global_position.move_toward(destination, move_speed * delta)
+	_play_if_available(move_animation)
 
-	var distance: float = global_position.distance_to(
-		summoner.global_position
-	)
 
-	if distance > follow_distance:
-		_move_toward(summoner.global_position)
+func _follow_summoner(delta: float) -> void:
+	if (
+		is_instance_valid(summoner)
+		and global_position.distance_to(summoner.global_position) > follow_distance
+	):
+		_move_toward(summoner.global_position, delta)
 	else:
 		_play_if_available(idle_animation)
 
 
 # =========================================================
 # ATTACKS
-# THRUST -> SLASH -> DOUBLE SLASH
 # =========================================================
 
-func _start_attack() -> void:
+# Next available attack animation in the combo (skips missing ones).
+func _next_attack_animation() -> StringName:
+	var combo: Array[StringName] = [
+		attack1_animation,
+		attack2_animation,
+		attack3_animation
+	]
+
+	for i in combo.size():
+		var index: int = (attack_number + i) % combo.size()
+
+		if _has_animation(combo[index]):
+			attack_number = (index + 1) % combo.size()
+			return combo[index]
+
+	return &""
+
+
+func _action_valid(token: int) -> bool:
+	return (
+		is_inside_tree()
+		and not disappearing
+		and not hurt
+		and token == action_token
+	)
+
+
+func _start_attack(victim: Node2D) -> void:
 	if attacking or hurt or disappearing:
+		return
+
+	var attack_animation: StringName = _next_attack_animation()
+
+	if attack_animation == &"":
+		push_warning("[PALADIN] No attack animations are assigned.")
 		return
 
 	attacking = true
 	attack_cooldown = attack_interval
+	attack_target = victim
+
 	action_token += 1
-
 	var this_token: int = action_token
-	var selected_animation: StringName
 
-	match attack_number:
-		0:
-			selected_animation = attack1_animation
-		1:
-			selected_animation = attack2_animation
-		_:
-			selected_animation = attack3_animation
+	_restart_animation(attack_animation)
 
-	attack_number = (attack_number + 1) % 3
+	var frame_count: int = animated_sprite.sprite_frames.get_frame_count(attack_animation)
+	var hit_frame: int = clampi(attack_hit_frame, 0, frame_count - 1)
 
-	# Fall back to another available attack if needed.
-	if not _has_animation(selected_animation):
-		if _has_animation(attack1_animation):
-			selected_animation = attack1_animation
-		elif _has_animation(attack2_animation):
-			selected_animation = attack2_animation
-		elif _has_animation(attack3_animation):
-			selected_animation = attack3_animation
-		else:
-			attacking = false
-			push_warning("[PALADIN] No attack animations are assigned.")
-			return
-
-	animated_sprite.stop()
-	animated_sprite.animation = selected_animation
-	animated_sprite.frame = 0
-	animated_sprite.play()
-
-	var frame_count: int = animated_sprite.sprite_frames.get_frame_count(
-		selected_animation
-	)
-
-	var hit_frame: int = clampi(
-		attack_hit_frame,
-		0,
-		frame_count - 1
-	)
-
-	while (
-		animated_sprite.animation == selected_animation
-		and animated_sprite.frame < hit_frame
-		and animated_sprite.is_playing()
-	):
+	while animated_sprite.frame < hit_frame:
 		await get_tree().process_frame
 
-		if not is_inside_tree() or disappearing:
-			return
-
-		if this_token != action_token:
-			return
-
-		if hurt:
+		if not _action_valid(this_token) or animated_sprite.animation != attack_animation:
 			return
 
 	_apply_attack_damage()
 
-	if (
-		animated_sprite.animation == selected_animation
-		and animated_sprite.is_playing()
-	):
+	if animated_sprite.animation == attack_animation and animated_sprite.is_playing():
 		await animated_sprite.animation_finished
 
-	if not is_inside_tree() or disappearing:
-		return
-
-	if this_token != action_token:
+	if not _action_valid(this_token):
 		return
 
 	attacking = false
@@ -293,23 +259,16 @@ func _start_attack() -> void:
 
 
 func _apply_attack_damage() -> void:
-	if not _valid_target(target):
+	# Hits the enemy the attack started on, even if the nearest one changed.
+	if not _valid_target(attack_target):
 		return
 
-	var distance: float = global_position.distance_to(
-		target.global_position
-	)
-
-	if distance > attack_range * 1.5:
+	if global_position.distance_to(attack_target.global_position) > attack_range * 1.5:
 		return
 
-	if target.has_method("take_damage"):
-		target.call("take_damage", damage)
-
-		print(
-			"[PALADIN] Hit ", target.name,
-			" for ", damage, " damage."
-		)
+	if attack_target.has_method("take_damage"):
+		attack_target.call("take_damage", damage)
+		print("[PALADIN] Hit ", attack_target.name, " for ", damage, " damage.")
 
 
 # =========================================================
@@ -322,10 +281,7 @@ func take_damage(amount: int) -> void:
 
 	health = maxi(health - amount, 0)
 
-	print(
-		"[PALADIN] Took ", amount,
-		" damage | HP: ", health, "/", max_health
-	)
+	print("[PALADIN] Took ", amount, " damage | HP: ", health, "/", max_health)
 
 	if health <= 0:
 		die()
@@ -334,17 +290,19 @@ func take_damage(amount: int) -> void:
 	# Interrupt the current action and play hurt.
 	action_token += 1
 	attacking = false
+
+	if not _has_animation(hurt_animation):
+		return
+
 	hurt = true
+	var this_token: int = action_token
 
-	if _has_animation(hurt_animation):
-		animated_sprite.stop()
-		animated_sprite.animation = hurt_animation
-		animated_sprite.frame = 0
-		animated_sprite.play()
+	_restart_animation(hurt_animation)
 
-		await animated_sprite.animation_finished
+	await animated_sprite.animation_finished
 
-	if not is_inside_tree() or disappearing:
+	# A newer hit or the end of the Paladin took over.
+	if not is_inside_tree() or disappearing or this_token != action_token:
 		return
 
 	hurt = false
@@ -356,33 +314,26 @@ func take_damage(amount: int) -> void:
 # =========================================================
 
 func die() -> void:
-	if disappearing:
-		return
-
-	print("[PALADIN] DEFEATED")
-	_remove_paladin()
+	_remove_paladin("DEFEATED")
 
 
 func dismiss() -> void:
+	_remove_paladin("DISMISSED")
+
+
+func _remove_paladin(reason: String) -> void:
 	if disappearing:
 		return
 
-	print("[PALADIN] DISMISSED")
-	_remove_paladin()
+	print("[PALADIN] ", reason)
 
-
-func _remove_paladin() -> void:
 	disappearing = true
 	attacking = false
 	hurt = false
 	action_token += 1
 
 	if _has_animation(death_animation):
-		animated_sprite.stop()
-		animated_sprite.animation = death_animation
-		animated_sprite.frame = 0
-		animated_sprite.play()
-
+		_restart_animation(death_animation)
 		await animated_sprite.animation_finished
 
 	if is_inside_tree():
@@ -401,23 +352,21 @@ func _has_animation(anim_name: StringName) -> bool:
 	)
 
 
-func _set_loop(
-	anim_name: StringName,
-	should_loop: bool
-) -> void:
+func _set_loop(anim_name: StringName, should_loop: bool) -> void:
 	if _has_animation(anim_name):
-		animated_sprite.sprite_frames.set_animation_loop(
-			anim_name,
-			should_loop
-		)
+		animated_sprite.sprite_frames.set_animation_loop(anim_name, should_loop)
+
+
+func _restart_animation(anim_name: StringName) -> void:
+	animated_sprite.stop()
+	animated_sprite.animation = anim_name
+	animated_sprite.frame = 0
+	animated_sprite.play()
 
 
 func _play_if_available(anim_name: StringName) -> void:
 	if not _has_animation(anim_name):
 		return
 
-	if (
-		animated_sprite.animation != anim_name
-		or not animated_sprite.is_playing()
-	):
+	if animated_sprite.animation != anim_name or not animated_sprite.is_playing():
 		animated_sprite.play(anim_name)

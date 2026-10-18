@@ -22,6 +22,11 @@ config/icon="res://icon.svg"
 [autoload]
 
 Fade="*uid://c84iq01xwsqmw"
+BetterTerrain="*uid://vht4gy7ldtve"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/better-terrain/plugin.cfg")
 
 [input]
 
