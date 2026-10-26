@@ -8,11 +8,18 @@ signal died(character)
 @export var speed: float = 180.0
 
 # --- Health ---
-@export var max_health: int = 100
+@export var max_health: int = 150
 @export var respawn_time: float = 3.0
 
 # --- Attack damage ---
-@export var attack1_damage: int = 10
+@export var attack1_damage: int = 15
+# Animation frame where the sword connects, and how long the hit stays active.
+@export var attack1_hit_frame: int = 2
+@export var attack1_hit_window: float = 0.2
+# Sword reach box in front of the knight (pixels). Bigger = easier to hit.
+@export var attack1_reach: float = 70.0
+@export var attack1_height: float = 70.0
+@export var attack1_behind: float = 10.0
 @export var attack2_damage: int = 15
 
 # --- Knight slash (attack2 projectile) ---
@@ -36,8 +43,14 @@ signal died(character)
 # Turn this on for a character that should ignore stagger completely.
 @export var stagger_immune: bool = false
 
+# Overlapping bodies push each other apart, and players that spawn on the same
+# spot can get shoved away fast. With this on, players walk through each other.
+@export var players_ignore_each_other: bool = true
+
 # --- State ---
 var player_id: int = 0
+# False when no player is controlling this character (see CharacterSwitcher).
+var controlled: bool = true
 var health: int
 var dead: bool = false
 var hurt: bool = false
@@ -74,6 +87,7 @@ var act_attack3: String
 
 func _ready() -> void:
 	add_to_group("players")
+	call_deferred("_ignore_other_players")
 
 	# Top-down game: Floating stops bodies being carried along like moving platforms
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -117,6 +131,14 @@ func _detect_player_id() -> int:
 	return 0
 
 
+# Called by CharacterSwitcher. 1-4 = controlled by that player's input.
+# 0 = nobody controls this character: it just stands there.
+func set_controller(new_id: int) -> void:
+	player_id = new_id
+	controlled = new_id >= 1
+	_setup_actions()
+
+
 func _setup_actions() -> void:
 	var prefix: String = "p%d_" % maxi(player_id, 1)
 
@@ -155,6 +177,20 @@ func update_attack_area_direction() -> void:
 	attack_area.position.x = -abs(attack_area_distance) if animated_sprite.flip_h else abs(attack_area_distance)
 
 
+# Runs deferred, so every character in the scene is already in the "players"
+# group no matter which one is ready first.
+func _ignore_other_players() -> void:
+	if not players_ignore_each_other:
+		return
+
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self or not other is PhysicsBody2D:
+			continue
+
+		add_collision_exception_with(other)
+		other.add_collision_exception_with(self)
+
+
 func flash_red() -> void:
 	if flash_tween:
 		flash_tween.kill()
@@ -177,6 +213,13 @@ func _physics_process(_delta: float) -> void:
 	if blocking or attacking:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+
+	# Nobody controls this character right now.
+	if not controlled:
+		velocity = Vector2.ZERO
+		if animated_sprite.animation != "idle":
+			animated_sprite.play("idle")
 		return
 
 	var direction := Input.get_vector(act_left, act_right, act_up, act_down)
@@ -234,7 +277,10 @@ func start_attack(attack_name: String) -> void:
 		return
 
 	if attack_name == "attack1":
-		do_melee_damage()
+		await _melee_window(my_id)
+
+		if not _attack_alive(my_id):
+			return
 	elif attack_name == "attack2":
 		await wait_for_slash_frame(my_id)
 
@@ -254,11 +300,47 @@ func start_attack(attack_name: String) -> void:
 	animated_sprite.play("idle")
 
 
+# Checks the sword area over several physics frames. Area2D overlaps only
+# update after a physics step, so a single check right after enabling the
+# area can miss enemies that are standing inside it.
+func _melee_window(id: int) -> void:
+	var last_frame: int = animated_sprite.sprite_frames.get_frame_count("attack1") - 1
+	var target_frame: int = mini(attack1_hit_frame, last_frame)
+
+	while animated_sprite.frame < target_frame:
+		await animated_sprite.frame_changed
+
+		if not _attack_alive(id):
+			return
+
+	var time_left: float = attack1_hit_window
+
+	while time_left > 0.0:
+		do_melee_damage()
+		await get_tree().physics_frame
+
+		if not _attack_alive(id):
+			return
+
+		time_left -= get_physics_process_delta_time()
+
+
 func do_melee_damage() -> void:
-	for body in attack_area.get_overlapping_bodies():
+	# Two ways to find targets, so a swing does not depend on collision timing:
+	# the AttackArea overlaps, plus a simple box test in front of the knight
+	# against every enemy.
+	var candidates: Array = attack_area.get_overlapping_bodies()
+
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not candidates.has(enemy) and _in_melee_box(enemy):
+			candidates.append(enemy)
+
+	for body in candidates:
 		if body == self:
 			continue
 		if not body.is_in_group("enemies"):
+			continue
+		if "dead" in body and body.dead:
 			continue
 		if body in hit_targets:
 			continue
@@ -267,6 +349,17 @@ func do_melee_damage() -> void:
 
 		hit_targets.append(body)
 		body.take_damage(attack1_damage)
+
+
+func _in_melee_box(enemy) -> bool:
+	if not is_instance_valid(enemy) or not (enemy is Node2D):
+		return false
+
+	var offset: Vector2 = enemy.global_position - global_position
+	var facing: float = -1.0 if animated_sprite.flip_h else 1.0
+	var forward: float = offset.x * facing
+
+	return forward >= -attack1_behind and forward <= attack1_reach and absf(offset.y) <= attack1_height * 0.5
 
 
 func wait_for_slash_frame(id: int) -> void:
@@ -458,4 +551,4 @@ func respawn() -> void:
 	collision_shape.set_deferred("disabled", false)
 	animated_sprite.play("idle")
 
-	print("KNIGHT RESPAWNED | PLAYER ID: ", player_id, " | HP: ", health)	
+	print("KNIGHT RESPAWNED | PLAYER ID: ", player_id, " | HP: ", health)

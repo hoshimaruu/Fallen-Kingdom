@@ -307,6 +307,9 @@ animations = [{
 "speed": 6.0
 }]
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_2x0db"]
+radius = 6.5
+
 [node name="slime" type="CharacterBody2D" unique_id=131507999]
 scale = Vector2(2, 2)
 collision_layer = 2
@@ -323,3 +326,5 @@ frame = 11
 frame_progress = 1.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1527279056]
+position = Vector2(0.5, 1.5)
+shape = SubResource("CircleShape2D_2x0db")

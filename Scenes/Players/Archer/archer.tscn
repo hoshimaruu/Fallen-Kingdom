@@ -1,4 +1,4 @@
-[gd_scene load_steps=55 format=3 uid="uid://c8xh8ccq5nddj"]
+[gd_scene format=3 uid="uid://c8xh8ccq5nddj"]
 
 [ext_resource type="Texture2D" uid="uid://cjbffipuml1vp" path="res://Assets/Tiny RPG Character Asset Pack 01 v2.0 -Full 22 Characters/Characters(100x100 split)/Archer/Archer with shadows/Archer_Attack01.png" id="1_7gayo"]
 [ext_resource type="Script" uid="uid://bvjut5la0g0x7" path="res://Scripts/Players/archer.gd" id="1_g0dm0"]
@@ -212,7 +212,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_2kfyb")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack1",
 "speed": 10.0
 }, {
@@ -253,7 +253,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_shpy7")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack2",
 "speed": 10.0
 }, {
@@ -270,7 +270,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_owkul")
 }],
-"loop": false,
+"loop": 0,
 "name": &"death",
 "speed": 5.0
 }, {
@@ -287,7 +287,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_raoxb")
 }],
-"loop": false,
+"loop": 0,
 "name": &"hurt",
 "speed": 5.0
 }, {
@@ -310,7 +310,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_6510v")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 10.0
 }, {
@@ -339,7 +339,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_x67cr")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 10.0
 }]
@@ -347,15 +347,15 @@ animations = [{
 [sub_resource type="CircleShape2D" id="CircleShape2D_raoxb"]
 radius = 9.0
 
-[node name="archer" type="CharacterBody2D"]
+[node name="archer" type="CharacterBody2D" unique_id=1107230299]
 scale = Vector2(2, 2)
 script = ExtResource("1_g0dm0")
 arrow1_scene = ExtResource("2_8yrtc")
 arrow2_scene = ExtResource("3_te8of")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1243385341]
 sprite_frames = SubResource("SpriteFrames_uh45c")
 animation = &"attack2"
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2132816217]
 shape = SubResource("CircleShape2D_raoxb")

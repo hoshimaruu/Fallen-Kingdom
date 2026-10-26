@@ -72,11 +72,17 @@ signal died(character)
 # Turn this on for a character that should ignore stagger completely.
 @export var stagger_immune: bool = false
 
+# Overlapping bodies push each other apart, and players that spawn on the same
+# spot can get shoved away fast. With this on, players walk through each other.
+@export var players_ignore_each_other: bool = true
+
 # =========================================================
 # STATE
 # =========================================================
 
 var player_id: int = 0
+# False when no player is controlling this character (see CharacterSwitcher).
+var controlled: bool = true
 var health: int = 100
 
 var dead: bool = false
@@ -122,6 +128,7 @@ var act_attack3: String
 
 func _ready() -> void:
 	add_to_group("players")
+	call_deferred("_ignore_other_players")
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
 
 	player_id = _detect_player_id()
@@ -184,6 +191,14 @@ func _detect_player_id() -> int:
 		% name
 	)
 	return 1
+
+
+# Called by CharacterSwitcher. 1-4 = controlled by that player's input.
+# 0 = nobody controls this character: it just stands there.
+func set_controller(new_id: int) -> void:
+	player_id = new_id
+	controlled = new_id >= 1
+	_setup_actions()
 
 
 func _setup_actions() -> void:
@@ -261,6 +276,20 @@ func heal(amount: int) -> int:
 	return health - old_health
 
 
+# Runs deferred, so every character in the scene is already in the "players"
+# group no matter which one is ready first.
+func _ignore_other_players() -> void:
+	if not players_ignore_each_other:
+		return
+
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self or not other is PhysicsBody2D:
+			continue
+
+		add_collision_exception_with(other)
+		other.add_collision_exception_with(self)
+
+
 func flash_red() -> void:
 	if flash_tween and flash_tween.is_running():
 		flash_tween.kill()
@@ -295,6 +324,13 @@ func _physics_process(delta: float) -> void:
 	if attacking:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+
+	# Nobody controls this character right now.
+	if not controlled:
+		velocity = Vector2.ZERO
+		if _has_animation(idle_animation) and animated_sprite.animation != idle_animation:
+			animated_sprite.play(idle_animation)
 		return
 
 	if Input.is_action_just_pressed(act_attack1):

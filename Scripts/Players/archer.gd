@@ -31,6 +31,10 @@ signal died(character)
 # Turn this on for a character that should ignore stagger completely.
 @export var stagger_immune: bool = false
 
+# Overlapping bodies push each other apart, and players that spawn on the same
+# spot can get shoved away fast. With this on, players walk through each other.
+@export var players_ignore_each_other: bool = true
+
 # --- Attacks ---
 @export var attack1_damage: int = 15
 @export var attack2_damage: int = 25
@@ -48,6 +52,8 @@ signal died(character)
 
 # --- State ---
 var player_id: int = 0
+# False when no player is controlling this character (see CharacterSwitcher).
+var controlled: bool = true
 var health: int
 var dead: bool = false
 var hurt: bool = false
@@ -90,6 +96,7 @@ var flash_tween: Tween
 
 func _ready() -> void:
 	add_to_group("players")
+	call_deferred("_ignore_other_players")
 
 	# Top-down game: Floating stops bodies being carried along like moving platforms
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
@@ -138,6 +145,14 @@ func _detect_player_id() -> int:
 	return 0
 
 
+# Called by CharacterSwitcher. 1-4 = controlled by that player's input.
+# 0 = nobody controls this character: it just stands there.
+func set_controller(new_id: int) -> void:
+	player_id = new_id
+	controlled = new_id >= 1
+	_setup_actions()
+
+
 func _setup_actions() -> void:
 	var prefix: String = "p%d_" % maxi(player_id, 1)
 
@@ -163,6 +178,20 @@ func _restart_animation(anim_name: String) -> void:
 	animated_sprite.animation = anim_name
 	animated_sprite.frame = 0
 	animated_sprite.play()
+
+
+# Runs deferred, so every character in the scene is already in the "players"
+# group no matter which one is ready first.
+func _ignore_other_players() -> void:
+	if not players_ignore_each_other:
+		return
+
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self or not other is PhysicsBody2D:
+			continue
+
+		add_collision_exception_with(other)
+		other.add_collision_exception_with(self)
 
 
 func flash_red() -> void:
@@ -239,6 +268,13 @@ func _physics_process(delta: float) -> void:
 	if attacking:
 		velocity = Vector2.ZERO
 		move_and_slide()
+		return
+
+	# Nobody controls this character right now.
+	if not controlled:
+		velocity = Vector2.ZERO
+		if animated_sprite.animation != "idle":
+			animated_sprite.play("idle")
 		return
 
 	# --- Ability input ---

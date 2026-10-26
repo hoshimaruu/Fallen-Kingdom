@@ -1,15 +1,20 @@
 [gd_scene format=3 uid="uid://dkhqfjus7e58w"]
 
-[ext_resource type="PackedScene" uid="uid://bkpsu021qa7ys" path="res://Scenes/Players/Healer/healer.tscn" id="1_8gbba"]
+[ext_resource type="PackedScene" uid="uid://b2m3k3f73sfa8" path="res://Scenes/Players/Mage/mage.tscn" id="1_jjvhh"]
+[ext_resource type="PackedScene" uid="uid://c8xh8ccq5nddj" path="res://Scenes/Players/Archer/archer.tscn" id="2_kry3j"]
+[ext_resource type="PackedScene" uid="uid://dmnptam052ha4" path="res://Scenes/Players/Knight/knight.tscn" id="2_ynf5e"]
 [ext_resource type="PackedScene" uid="uid://bdy40qav1uh8h" path="res://Scenes/Enemies/orc.tscn" id="3_8gbba"]
 [ext_resource type="PackedScene" uid="uid://dpogqj67h2fyw" path="res://Scenes/Enemies/slime.tscn" id="4_jjvhh"]
+[ext_resource type="Script" uid="uid://yn22n1mauvcl" path="res://Scripts/VFX/character_switcher.gd" id="5_kry3j"]
+[ext_resource type="PackedScene" uid="uid://bkpsu021qa7ys" path="res://Scenes/Players/Healer/healer.tscn" id="7_hptm8"]
 
 [node name="Main" type="Node2D" unique_id=956380312]
 position = Vector2(512, 335)
 
 [node name="Player1" type="Node2D" parent="." unique_id=1598986193]
 
-[node name="healer" parent="Player1" unique_id=2078450527 instance=ExtResource("1_8gbba")]
+[node name="Knight" parent="Player1" unique_id=1381069752 instance=ExtResource("2_ynf5e")]
+position = Vector2(-199, 14)
 
 [node name="Player2" type="Node2D" parent="." unique_id=505823182]
 
@@ -25,3 +30,10 @@ position = Vector2(-91, -89)
 [node name="UI" type="CanvasLayer" parent="." unique_id=951988641]
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=385334350]
+
+[node name="CharacterSwitcher" type="Node2D" parent="." unique_id=30834814]
+script = ExtResource("5_kry3j")
+knight_scene = ExtResource("2_ynf5e")
+archer_scene = ExtResource("2_kry3j")
+mage_scene = ExtResource("1_jjvhh")
+healer_scene = ExtResource("7_hptm8")

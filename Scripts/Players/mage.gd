@@ -71,11 +71,22 @@ signal died(character)
 # Turn this on for a character that should ignore stagger completely.
 @export var stagger_immune: bool = false
 
+# --- Safety / debug ---
+# Overlapping bodies push each other apart. Players that spawn on the same
+# spot (or inside each other) can get shoved away fast. With this on, players
+# walk through each other instead.
+@export var players_ignore_each_other: bool = true
+# Prints the input being read, and any movement that has no input behind it
+# (with the name of whatever pushed the mage). Turn off once everything works.
+@export var debug_movement: bool = true
+
 # =========================================================
 # STATE
 # =========================================================
 
 var player_id: int = 0
+# False when no player is controlling this character (see CharacterSwitcher).
+var controlled: bool = true
 var health: int = 0
 
 var dead: bool = false
@@ -97,6 +108,10 @@ var attack_cooldowns: Dictionary = {
 
 var base_modulate: Color = Color.WHITE
 var flash_tween: Tween
+
+var _has_last_position: bool = false
+var _last_position: Vector2 = Vector2.ZERO
+var _last_input: Vector2 = Vector2.ZERO
 
 # =========================================================
 # INPUT
@@ -127,6 +142,7 @@ func _ready() -> void:
 	add_to_group("players")
 
 	motion_mode = CharacterBody2D.MOTION_MODE_FLOATING
+	call_deferred("_ignore_other_players")
 
 	player_id = _detect_player_id()
 	_setup_actions()
@@ -195,6 +211,14 @@ func _detect_player_id() -> int:
 # =========================================================
 # INPUT SETUP
 # =========================================================
+
+# Called by CharacterSwitcher. 1-4 = controlled by that player's input.
+# 0 = nobody controls this character: it just stands there.
+func set_controller(new_id: int) -> void:
+	player_id = new_id
+	controlled = new_id >= 1
+	_setup_actions()
+
 
 func _setup_actions() -> void:
 	var prefix: String = "p%d_" % player_id
@@ -272,6 +296,61 @@ func flash_red() -> void:
 
 
 # =========================================================
+# MOVEMENT SAFETY / DEBUG
+# =========================================================
+
+func _ignore_other_players() -> void:
+	if not players_ignore_each_other:
+		return
+
+	for other in get_tree().get_nodes_in_group("players"):
+		if other == self or not other is PhysicsBody2D:
+			continue
+
+		add_collision_exception_with(other)
+		other.add_collision_exception_with(self)
+
+
+func _debug_movement(direction: Vector2) -> void:
+	if not debug_movement:
+		return
+
+	# Log whenever the input changes, so a stuck key or stick shows up.
+	if direction != _last_input:
+		_last_input = direction
+
+		if direction != Vector2.ZERO:
+			_log(
+				"INPUT %s | %s %.2f | %s %.2f | %s %.2f | %s %.2f" %
+				[
+					direction,
+					act_up, Input.get_action_strength(act_up),
+					act_down, Input.get_action_strength(act_down),
+					act_left, Input.get_action_strength(act_left),
+					act_right, Input.get_action_strength(act_right)
+				]
+			)
+
+	var moved: float = global_position.distance_to(_last_position)
+	var had_last: bool = _has_last_position
+
+	_last_position = global_position
+	_has_last_position = true
+
+	# Moving with no input means something else is pushing the mage.
+	if had_last and direction == Vector2.ZERO and moved > 0.5:
+		var pushers: Array = []
+
+		for i in get_slide_collision_count():
+			var collider: Object = get_slide_collision(i).get_collider()
+
+			if is_instance_valid(collider):
+				pushers.append(str(collider.name))
+
+		_log("MOVED %.1f PX WITH NO INPUT | PUSHED BY: %s" % [moved, pushers])
+
+
+# =========================================================
 # COOLDOWNS
 # =========================================================
 
@@ -319,6 +398,13 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		return
 
+	# Nobody controls this character right now.
+	if not controlled:
+		velocity = Vector2.ZERO
+		if animated_sprite.animation != "idle":
+			animated_sprite.play("idle")
+		return
+
 	if Input.is_action_just_pressed(act_attack1):
 		if try_attack("attack1"):
 			return
@@ -349,6 +435,7 @@ func _physics_process(delta: float) -> void:
 		animated_sprite.play(wanted_anim)
 
 	move_and_slide()
+	_debug_movement(direction)
 
 
 # =========================================================

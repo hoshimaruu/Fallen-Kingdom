@@ -1,4 +1,4 @@
-[gd_scene load_steps=63 format=3 uid="uid://dmnptam052ha4"]
+[gd_scene format=3 uid="uid://dmnptam052ha4"]
 
 [ext_resource type="Script" uid="uid://vvaif512pii7" path="res://Scripts/Players/knight.gd" id="1_421cp"]
 [ext_resource type="PackedScene" uid="uid://ddqnbp4une485" path="res://Scenes/Players/Knight/knight_slash.tscn" id="2_i6r68"]
@@ -232,7 +232,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_8108t")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack1",
 "speed": 10.0
 }, {
@@ -270,7 +270,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_isn7m")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack2",
 "speed": 10.0
 }, {
@@ -287,7 +287,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_orp30")
 }],
-"loop": false,
+"loop": 0,
 "name": &"attack3",
 "speed": 10.0
 }, {
@@ -304,7 +304,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_0yhv0")
 }],
-"loop": false,
+"loop": 0,
 "name": &"death",
 "speed": 5.0
 }, {
@@ -321,7 +321,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_kftvj")
 }],
-"loop": false,
+"loop": 0,
 "name": &"hurt",
 "speed": 5.0
 }, {
@@ -344,7 +344,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_3t24d")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 10.0
 }, {
@@ -373,7 +373,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_gai6k")
 }],
-"loop": true,
+"loop": 1,
 "name": &"walk",
 "speed": 10.0
 }]
@@ -382,7 +382,7 @@ animations = [{
 radius = 9.513149
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vh0fs"]
-size = Vector2(29.25, 22.5)
+size = Vector2(23.25, 22.5)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_knq7q"]
 atlas = ExtResource("10_jndnq")
@@ -394,18 +394,18 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_knq7q")
 }],
-"loop": false,
+"loop": 0,
 "name": &"barrier",
 "speed": 5.0
 }]
 
-[node name="Knight" type="CharacterBody2D"]
+[node name="Knight" type="CharacterBody2D" unique_id=1381069752]
 scale = Vector2(2, 2)
 collision_mask = 18
 script = ExtResource("1_421cp")
 slash_scene = ExtResource("2_i6r68")
 
-[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=213007131]
 position = Vector2(0.49999905, 0.49999905)
 scale = Vector2(1.20375, 1.169375)
 sprite_frames = SubResource("SpriteFrames_ilukw")
@@ -413,19 +413,19 @@ animation = &"hurt"
 frame = 3
 frame_progress = 1.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1854767215]
 position = Vector2(0, 1)
 shape = SubResource("CircleShape2D_r6yax")
 
-[node name="AttackArea" type="Area2D" parent="."]
+[node name="AttackArea" type="Area2D" parent="." unique_id=2049933945]
 collision_layer = 4
 collision_mask = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackArea"]
-position = Vector2(15.375, 0)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackArea" unique_id=492812721]
+position = Vector2(12.375, 0)
 shape = SubResource("RectangleShape2D_vh0fs")
 
-[node name="Barrier" type="AnimatedSprite2D" parent="."]
+[node name="Barrier" type="AnimatedSprite2D" parent="." unique_id=1865694274]
 visible = false
 scale = Vector2(0.5, 0.5)
 sprite_frames = SubResource("SpriteFrames_shdg7")
