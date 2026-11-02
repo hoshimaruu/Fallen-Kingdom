@@ -7,6 +7,14 @@ extends Area2D
 @export var freeze_duration: float = 2.0
 @export var faces_right: bool = true
 
+# --- Multi-hit ---
+# Every enemy touched by the ice is hit and frozen, once each.
+# 0 = no limit, otherwise at most this many enemies per cast.
+@export var max_targets: int = 0
+# Also hits every enemy within this many pixels of the ice's centre, even if the
+# collision shape misses it. 0 = only use the collision shape.
+@export var hit_radius: float = 90.0
+
 var direction: Vector2 = Vector2.RIGHT
 var target: Node2D = null
 
@@ -14,7 +22,6 @@ var hit_targets: Array = []
 
 var active: bool = false
 var finished: bool = false
-var damage_dealt: bool = false
 
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
@@ -106,12 +113,10 @@ func _physics_process(_delta: float) -> void:
 	if active:
 		check_target()
 		check_overlapping_enemies()
+		check_enemies_in_radius()
 
 
 func check_target() -> void:
-	if damage_dealt:
-		return
-
 	if target == null:
 		return
 
@@ -128,7 +133,7 @@ func check_target() -> void:
 		target.global_position
 	)
 
-	if distance <= 90.0:
+	if distance <= maxf(hit_radius, 90.0):
 		hit_enemy(target)
 
 
@@ -136,14 +141,21 @@ func check_overlapping_enemies() -> void:
 	if not active:
 		return
 
-	if damage_dealt:
-		return
-
 	for body in get_overlapping_bodies():
 		_on_body_entered(body)
 
-		if damage_dealt:
-			return
+
+# Hits every enemy near the ice's centre, so a crowd is frozen together.
+func check_enemies_in_radius() -> void:
+	if hit_radius <= 0.0:
+		return
+
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy) or not enemy is Node2D:
+			continue
+
+		if global_position.distance_to(enemy.global_position) <= hit_radius:
+			hit_enemy(enemy)
 
 
 func _on_body_entered(body: Node) -> void:
@@ -151,9 +163,6 @@ func _on_body_entered(body: Node) -> void:
 		return
 
 	if not active:
-		return
-
-	if damage_dealt:
 		return
 
 	if body.is_in_group("players"):
@@ -166,7 +175,7 @@ func _on_body_entered(body: Node) -> void:
 
 
 func hit_enemy(enemy: Node) -> void:
-	if damage_dealt:
+	if max_targets > 0 and hit_targets.size() >= max_targets:
 		return
 
 	if enemy == null:
@@ -182,8 +191,6 @@ func hit_enemy(enemy: Node) -> void:
 		return
 
 	hit_targets.append(enemy)
-
-	damage_dealt = true
 
 	print("================================")
 	print("ICE HIT ENEMY:", enemy.name)

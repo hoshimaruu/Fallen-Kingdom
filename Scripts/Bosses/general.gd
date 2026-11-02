@@ -20,7 +20,8 @@ extends Enemy
 #                   10 Lance Dashes. Cooldown 60 s, counted from the cast.
 #
 # Suggested Inspector values (Enemy section): max_health 600, move_speed 130,
-# attack_damage 12 (slash), attack2_damage 20 (lance), attack_cooldown 1.0.
+# attack_damage 12 (slash), attack2_damage 20 (lance). Cooldowns are set below
+# (slash_cooldown, lance_cooldown, dash_cooldown); attack_cooldown is not used.
 # Set attack1_hit_frame / attack2_hit_frame / attack3_hit_frame to the frame
 # where the weapon actually swings in each animation.
 
@@ -34,6 +35,7 @@ signal shield_ended
 # --- Slash (attack1) ---
 @export var slash_range: float = 70.0
 @export var slash_behind: float = 10.0
+@export var slash_cooldown: float = 2.0
 
 # --- Lance Charge (attack2) ---
 @export var lance_trigger_range: float = 160.0   # starts the charge from this far
@@ -41,11 +43,12 @@ signal shield_ended
 @export var lance_lunge_speed: float = 380.0
 @export var lance_length: float = 110.0
 @export var lance_half_width: float = 28.0
+@export var lance_cooldown: float = 3.5
 
 # --- Lance Dash (skill) ---
 @export var dash_distance: float = 220.0
 @export var dash_speed: float = 520.0
-@export var dash_cooldown: float = 4.0
+@export var dash_cooldown: float = 7.0
 @export var dash_trigger_distance: float = 200.0   # dashes at targets farther than this
 @export var dash_stop_distance: float = 55.0       # stops this close to the target
 @export var dash_hit_reach: float = 55.0
@@ -56,7 +59,7 @@ signal shield_ended
 
 # --- Spike Shield (ultimate) ---
 @export var ultimate_health_ratio: float = 0.5
-@export var ultimate_cooldown: float = 60.0
+@export var ultimate_cooldown: float = 60.0   # counted from the cast
 @export var attack3_animation: StringName = &"attack3"
 @export var attack3_hit_frame: int = 4
 @export var bash_radius: float = 110.0
@@ -69,7 +72,13 @@ signal shield_ended
 @export var shield_color: Color = Color(0.85, 0.9, 1.0, 0.9)
 @export var ultimate_dashes: int = 10
 @export var ultimate_dash_damage: int = 12
-@export var ultimate_dash_pause: float = 0.3
+# How far and how fast each ultimate dash is. Each dash lasts about
+# distance / speed seconds (300 / 620 = roughly 0.5 s). Lower the speed or raise
+# the distance to make every dash last longer.
+@export var ultimate_dash_max_distance: float = 300.0
+@export var ultimate_dash_speed: float = 620.0
+# Pause between each dash of the ultimate (seconds). Bigger = easier to dodge.
+@export var ultimate_dash_pause: float = 0.6
 
 # --- Hit detection ---
 # Extra pixels added around a target so thin hits are not missed.
@@ -250,15 +259,16 @@ func _aborted(id: int) -> bool:
 	return dead or frozen or id != attack_id
 
 
-func _end_action(id: int, start_cooldown: bool = true) -> void:
+func _end_action(id: int, cooldown: float = -1.0) -> void:
 	if id != attack_id:
 		return
 
 	attacking = false
 	attack_target = null
 
-	if start_cooldown:
-		attack_cd_left = attack_cooldown
+	# Negative = leave the attack timer alone.
+	if cooldown >= 0.0:
+		attack_cd_left = cooldown
 
 	_play_if_not(idle_animation)
 
@@ -452,7 +462,7 @@ func _do_dash_action(direction: Vector2, target, evading: bool) -> void:
 		return
 
 	# Attack right after a gap-closing dash; do not restart the attack timer.
-	_end_action(id, false)
+	_end_action(id)
 
 
 func _try_evade(target) -> void:
@@ -496,7 +506,7 @@ func _do_slash(target) -> void:
 	if _aborted(id):
 		return
 
-	_end_action(id)
+	_end_action(id, slash_cooldown)
 	_try_evade(target)
 
 
@@ -531,7 +541,7 @@ func _do_lance_charge(target) -> void:
 	if _aborted(id):
 		return
 
-	_end_action(id)
+	_end_action(id, lance_cooldown)
 	_try_evade(target)
 
 
@@ -575,10 +585,10 @@ func _do_ultimate(target) -> void:
 		attack_target = next_target
 
 		var to_target: Vector2 = next_target.global_position - global_position
-		var length: float = clampf(to_target.length(), 60.0, dash_distance * 1.4)
+		var length: float = clampf(to_target.length(), 60.0, ultimate_dash_max_distance)
 
 		await _dash(
-			to_target.normalized(), length, dash_speed * 1.2,
+			to_target.normalized(), length, ultimate_dash_speed,
 			ultimate_dash_damage, dash_hit_reach, dash_hit_half_width,
 			true, true, id
 		)
@@ -592,7 +602,7 @@ func _do_ultimate(target) -> void:
 	if _aborted(id):
 		return
 
-	_end_action(id)
+	_end_action(id, lance_cooldown)
 
 
 func _start_shield() -> void:
