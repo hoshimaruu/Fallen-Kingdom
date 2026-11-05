@@ -12,7 +12,7 @@ signal died(character)
 @export var respawn_time: float = 3.0
 
 # --- Attack damage ---
-@export var attack1_damage: int = 15
+@export var attack1_damage: int = 10
 # Animation frame where the sword connects, and how long the hit stays active.
 @export var attack1_hit_frame: int = 2
 @export var attack1_hit_window: float = 0.2

@@ -9,7 +9,7 @@ extends Node2D
 #   death   (not looping)   optional, plays when time runs out, else it fades
 
 @export var damage: int = 12
-@export var lifetime: float = 25.0
+@export var lifetime: float = 12.0
 @export var move_speed: float = 140.0
 @export var detect_range: float = 350.0
 @export var attack_range: float = 45.0

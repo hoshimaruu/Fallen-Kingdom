@@ -9,7 +9,7 @@ extends Node2D
 
 @export var max_health: int = 120
 @export var damage: int = 18
-@export var lifetime: float = 20.0
+@export var lifetime: float = 15.0
 @export var move_speed: float = 160.0
 
 @export var detect_range: float = 400.0
