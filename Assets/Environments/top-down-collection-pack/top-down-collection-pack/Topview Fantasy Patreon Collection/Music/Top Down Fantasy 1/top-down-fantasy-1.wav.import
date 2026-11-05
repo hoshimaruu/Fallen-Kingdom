@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://dc3l2qou3ei4w"
+path="res://.godot/imported/top-down-fantasy-1.wav-3be2da35892f2d588ad758aa5b2172bd.sample"
+
+[deps]
+
+source_file="res://Assets/Environments/top-down-collection-pack/top-down-collection-pack/Topview Fantasy Patreon Collection/Music/Top Down Fantasy 1/top-down-fantasy-1.wav"
+dest_files=["res://.godot/imported/top-down-fantasy-1.wav-3be2da35892f2d588ad758aa5b2172bd.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2
