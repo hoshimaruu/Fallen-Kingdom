@@ -1,0 +1,19 @@
+ASSET LICENSE - Medieval Village Exterior RPG Tileset
+Created by Hypnobius
+https://hypnobius.itch.io/
+
+---
+
+You are allowed to:
+- Use these assets for commercial (free or paid) and personal projects
+- Modify tiles to suit your game or project
+- Credit the artist (optional but appreciated)
+
+You are not allowed to:
+- Resell or redistribute this asset pack, either modified or in its original form
+- Include these tiles in other downloadable packs
+- Use these assets in NFTs, blockchain games, or AI training datasets
+
+---
+
+This license applies only to the original asset files. Any game or project implementing these assets may be utilized under your own license.
